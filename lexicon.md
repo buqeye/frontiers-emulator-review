@@ -4,7 +4,7 @@
 
 | Term | Usage here |
 | ----------- | ----------- |
-| affine |Parameter dependence factors from operators, e.g., $H(\bm{\theta})= \sum_n h_n({\theta}) \widehat{H}_n$. |
+| affine |Parameter dependence factors from operators, e.g., $H({\theta})= \sum_n h_n({\theta}) \widehat{H}_n$. |
 | emulator | fast &amp; accurate model of the exact system |
 | greedy sampling | Serially find snapshot locations $\theta_i$ at largest expected error (using a fast approximation). |
 | high fidelity | Highly accurate, usually for costly calculation [Full-Order Model (FOM)]. |
