@@ -1,0 +1,14 @@
+name: frontiers-emulator-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - jupyter=1.0.0
+  - jupyter_nbextensions_configurator=0.4.1
+  - matplotlib=3.5.3
+  - nbconvert=5.6.1
+  - numpy=1.23.1
+  - pandas=1.4.3
+  - pip=22.2.2
+  - python=3.9.13
+  - scipy=1.9.0
