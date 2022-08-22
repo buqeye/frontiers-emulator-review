@@ -1,0 +1,94 @@
+---
+output: html_notebook
+author:
+  - name: Jordan Melendez
+    affiliation: The Ohio State University
+    orcid: 0000-0003-1359-1594
+date: "2022-Aug-20"
+format:
+  html:
+    code-fold: show
+    code-tools: true
+jupyter: python3
+citation: true
+bibliography: references.bib
+appendix-style: default
+license: "CC BY"
+---
+
+
+# Model Reduction {#sec-model-reduction}
+
+::: {.hidden}
+{{< include macros.qmd >}}
+:::
+
+
+## What is model reduction?
+
+This discusses the basics of model reduction.
+
+
+## Gaussian Processes
+
+
+
+## Variational principles & the Ritz method
+
+Variational principles are ubiquitous in physics.
+Many differential equations have a corresponding action, where the solution to the differential equation also makes the action stationary.
+This yields an alternate way of solving a set of PDEs: rather than solving the Euler-Lagrange equations themselves, one can instead find the solution that makes the action stationary under perturbations.
+The use of variational principles as a means to solve otherwise difficult problems dates back to Ritz.
+
+Variational principles begin with the definition of a scalar functional $\action$ that can be written as
+$$
+\begin{align}
+    \action[\psi] = \int_\Omega \dd{\Omega} F[\psi, \psi', \cdots] + \int_\Gamma \dd{\Gamma} E[\psi, \psi', \cdots]
+\end{align}
+$$
+where $F$ and $E$ are known differential operators, and $\Omega$ and $\Gamma$ are the domain and boundary, respectively.
+The unknown function $\psi$ is determined as that which makes $\action$ *stationary*, i.e., $\delta\action = 0$.
+
+The use of an *action* $\action$ to derive Euler-Lagrange equations is common practice in the physical sciences.
+But if one first proposes an *ansatz* as a trial function
+$$
+\begin{align}
+    \trial\psi = \sum_{i=1}^{\nbasis} \coeff_i\psi_i = X\coeffs
+\end{align}
+$$ {#eq-trial_general}
+then variational principles lead straightforwardly to an emulator $\trial\psi \approx \psi$.
+Rather than stipulate that $\delta\action = 0$ for any arbitrary variation $\delta\psi$, we instead extract the optimal coefficients, $\coeffs_\star$, as those for which $\action$ is stationary under variations in $\coeffs$:
+$$
+\begin{align}
+    \delta\action = \sum_{i=1}^{\nbasis} \frac{\partial\action}{\partial\coeff_i}\delta\coeff_i = 0
+\end{align}
+$$ {#eq-action_stationary_ansatz}
+
+The general case would involve a numerical search for the solution to @eq-action_stationary_ansatz but if $\action$ is quadratic in $\psi$ then the solution can be determined exactly.
+In this case $\action$ can be written as
+$$
+\begin{align}
+    \action = \coeffs^\dagger A \coeffs + \vec{b}\cdot \coeffs + c
+\end{align}
+$$
+for some $A$, $\vec{b}$, and $c$.
+The quadratic portion could be made symmetric---if it is not already---by writing it as
+$$
+\begin{align}
+    \action & = \coeffs^\dagger A_s \coeffs+ \vec{b}\cdot \coeffs + c \\
+    A_s & = \frac{A + A^\dagger}{2}
+\end{align}
+$$
+which can be desirable for numerical purposes.
+It then follows that the optimal coefficients, $\coeffs_\star$ are those for which
+$$
+\begin{align}
+    \delta\action = A_s\coeffs_\star + \vec{b} = 0
+\end{align}
+$$ {#eq-coefficient_solve_quadratic}
+which requires a simple matrix solve operation to obtain $\coeffs_\star$.
+This solve occurs only in a space of size $\nbasis$, the number of basis elements $\{\psi_i\}$, rather than in the much larger space of $\psi$ itself.
+Therefore, so long as $\{\psi_i\}$ approximately span the space in which $\psi$ lives, the trial function constructed by @eq-trial_general and @eq-coefficient_solve_quadratic will be both a fast and an accurate emulator of $\psi$.
+
+
+## Snapshots

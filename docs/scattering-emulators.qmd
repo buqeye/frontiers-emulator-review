@@ -1,0 +1,19 @@
+---
+output: html_notebook
+author: "Jordan Melendez"
+date: "2022-Aug-20"
+format:
+  html:
+    code-fold: show
+    code-tools: true
+jupyter: python3
+---
+
+# Scattering Emulators {#sec-scattering-emulators}
+
+::: {.hidden}
+{{< include macros.qmd >}}
+:::
+
+
+This discusses the Kohn- and Newton emulators for scattering systems.
