@@ -130,7 +130,7 @@ dmypy.json
 
 .idea/
 .DS_Store
-*.png
+# *.png
 *.pdf
 !subspace_emulation.pdf
 
