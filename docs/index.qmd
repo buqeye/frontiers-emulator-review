@@ -1,5 +1,13 @@
+
 # Preface {.unnumbered}
 
 This is a Quarto book. Testing.
 
 To learn more about Quarto books visit <https://quarto.org/docs/books>.
+
+If you find these resources helpful, please cite our work:
+```bibtex
+@article{
+    ...
+}
+```
