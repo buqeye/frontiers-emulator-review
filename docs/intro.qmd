@@ -1,5 +1,33 @@
+::: {.hidden}
+{{< include macros.qmd >}}
+:::
+
 # Introduction
 
-This is a book created from markdown and executable code.
+## Motivation
 
-See @knuth84 for additional discussion of literate programming.
+
+
+
+
+| Variable     | Usage Here |
+|--------------|--------------------------------------------|
+| $\coeffs$    | coefficients in the trial wave function    |
+| ...    | ...    |
+
+: Nomenclature {#tbl-nomenclature}
+
+
+$$
+\coeffs = \frac{a}{b}
+$$
+
+$$
+\begin{align}
+a & = \frac{a}{b} \\
+& = 2
+\end{align}
+$$ {#eq-test}
+
+
+@eq-test
