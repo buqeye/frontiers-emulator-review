@@ -27,7 +27,12 @@ book:
   repo-url: "https://github.com/buqeye/frontiers-emulator-review"
   repo-actions: [source, issue]
   description: "Supplemental material for our guide to emulators"
-  abstract: "This is the abstract"
+  abstract: "We provide a pedagogical survey of reduced-order model applications to emulators for low-energy nuclear physics.
+The term emulator refers to an algorithm capable of approximating an exact model calculation with high accuracy while requiring only a fraction of the computational resources.
+As the general tools employed by these emulators are not well known in the nuclear community, we begin with an introduction to projection methods, including variational and Galerkin projections.
+We then explore how these lead to emulators for bound and scattering systems that enable fast & accurate calculations using many different parameter sets.
+Finally, we point to extensions based on the broad field of model reduction and discuss open questions.
+All examples discussed here and more are available as open-source Python code so that practitioners can quickly incorporate reduced-order emulators into their own work."
   chapters:
     - index.qmd
     - intro.qmd
