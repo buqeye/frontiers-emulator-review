@@ -1,5 +1,13 @@
 project:
   type: book
+  title: "BUQEYE Guide to Emulators in Nuclear Physics"
+  # render:
+  #   # - mymacros.tex
+  #   # - macros.qmd
+  #   - index.qmd
+  #   - intro.qmd
+  #   - model-reduction.qmd
+  #   - eigen-emulators.qmd
   preview:
     port: 1234
 
@@ -26,8 +34,14 @@ book:
   favicon: buqeye_logo_web.png
   repo-url: "https://github.com/buqeye/frontiers-emulator-review"
   repo-actions: [source, issue]
-  description: "Supplemental material for our guide to emulators"
-  abstract: "This is the abstract"
+  # description: "Supplemental material for our guide to emulators"
+  abstract: |
+    We provide a pedagogical survey of reduced-order model applications to emulators for low-energy nuclear physics.
+    The term emulator refers to an algorithm capable of approximating an exact model calculation with high accuracy while requiring only a fraction of the computational resources.
+    As the general tools employed by these emulators are not well known in the nuclear community, we begin with an introduction to projection methods, including variational and Galerkin projections.
+    We then explore how these lead to emulators for bound and scattering systems that enable fast & accurate calculations using many different parameter sets.
+    Finally, we point to extensions based on the broad field of model reduction and discuss open questions.
+    All examples discussed here and more are available as open-source Python code so that practitioners can quickly incorporate reduced-order emulators into their own work.
   chapters:
     - index.qmd
     - intro.qmd
@@ -38,17 +52,61 @@ book:
     - references.qmd
   sidebar:
     logo: buqeye_logo_web.png
+  downloads: [pdf, epub]
 
 website:
-  title: Test
+  title: "BUQEYE Guide to Emulators in Nuclear Physics"
+  sidebar:
+    style: "docked"
+    search: true
+    contents:
+      - index.qmd
+      - intro.qmd
+      - model-reduction.qmd
+      - eigen-emulators.qmd
 
 bibliography: references.bib
 
 format:
   html:
     theme: cosmo
+    top-level-division: section
+    crossref:
+      eq-prefix: "Eq."
+      fig-prefix: "Figure"
+      sec-prefix: "Section"
+    language:
+      crossref-ch-prefix: "Section"
   pdf:
-    documentclass: scrreprt
+    # documentclass: scrreprt
+    documentclass: template-2022/frontiersinFPHYFAMS
+    classoption: utf8
+    top-level-division: section
+    toc: false
     keep-tex: true
+    pdf-engine: pdflatex
+    latex-auto-install: false # Faster if false. Change to true for publishing
     include-in-header:
-      - macros.tex
+      - preamble.tex
+      - mymacros.tex
+      - text: |
+          \usepackage{xtab}
+          %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+          % Redefine longtable because it doesn't work in multicolumn
+          %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+          \makeatletter
+          \def\longtable{\@ifnextchar[\newlongtable@i \newlongtable@ii}
+          \def\newlongtable@i[#1]{%
+          \renewcommand{\endhead}{\ignorespaces}
+          \xtabular[#1]}
+          \def\newlongtable@ii{%
+          \renewcommand{\endhead}{\ignorespaces}
+          \xtabular}
+          \def\endlongtable{\endxtabular}
+          \makeatother
+    crossref:
+      eq-prefix: "Eq."
+      fig-prefix: "Figure"
+      sec-prefix: "Section"
+    template-partials:
+      - partials/title.tex

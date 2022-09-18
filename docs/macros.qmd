@@ -1,19 +1,5 @@
+::: {.content-hidden when-format="pdf"}
 $$
-\newcommand{\trial}{\widetilde}
-\newcommand{\subspace}{\widetilde}
-\newcommand{\coeff}{\beta}
-\newcommand{\coeffs}{\vec{\coeff}}
-\newcommand{\coeffsopt}{\vec{\beta}_{\star}}
-
-\newcommand{\verifyvalue}[1]{#1}
-% \newcommand{\eg}{\textit{e.g.}\xspace}
-% \newcommand{\ie}{\textit{i.e.}\xspace}
-\newcommand{\eg}{\textit{e.g.}\xspace}
-\newcommand{\ie}{\textit{i.e.}}
-
-\newcommand*{\diffdchar}{\mathrm{d}}    % or {ⅆ}, or {\mathrm{d}}, or whatever standard you’d like to adhere to
-\newcommand*{\dd}{\mathop{\diffdchar\!}}
-
-\newcommand{\action}{\mathcal{S}}
-\newcommand{\nbasis}{N_b}
+{{< include mymacros.tex >}}
 $$
+:::

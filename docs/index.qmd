@@ -1,4 +1,5 @@
 
+::: {.content-hidden when-format="pdf"}
 # Preface {.unnumbered}
 
 This is a Quarto book. Testing.
@@ -11,3 +12,4 @@ If you find these resources helpful, please cite our work:
     ...
 }
 ```
+:::

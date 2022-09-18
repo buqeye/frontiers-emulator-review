@@ -1,7 +1,5 @@
 ---
 output: html_notebook
-author: "Jordan Melendez"
-date: "2022-Aug-20"
 format:
   html:
     code-fold: show
@@ -16,4 +14,469 @@ jupyter: python3
 :::
 
 
-This discusses the Kohn- and Newton emulators for scattering systems.
+## Kohn Emulators {#sec-kohn} 
+
+We would like to solve the (coupled) Schrodinger equation for scattering systems ($E>0$) across a range of parameters $\param$:
+$$
+\begin{aligned} %\label{eq:schrodinger_coupled}
+    H^{s's}(\param) \ket{\psi^{s\ell}} = E \ket{\psi^{s'\ell}}.
+\end{aligned}
+$$ {#eq-schrodinger_coupled}
+Here, $s$ is an angular momentum variable whose sum is implied, and $s'$ indexes the set of coupled equations to be simultaneously solved for a given $\ell$.
+In the uncoupled case, this reduces to a single equation with $s' = \ell$.
+Notably, even in the coupled case, each set of coupled equations can be solved independently for each choice of $\ell$ and $E$, which will have implications for how our emulator is constructed.
+We assume that $E$ is fixed throughout; the process can be repeated separately across a set of energies to create a suite of emulators, if desired.
+
+Projection-based emulation begins by first writing @eq-schrodinger_coupled in integral form.
+Here we choose the Kohn variational principle (KVP), which states that
+$$
+\begin{aligned} %\label{eq:kvp_coupled}
+    \mathcal{K}^{\ell'\ell}[\psi] = K^{\ell'\ell} - 2\mu \braket{\psi^{\ell's'} | [H - E]^{s's} | \psi^{s\ell}}
+\end{aligned}
+$$ {#eq-kvp_coupled}
+where $K$ is the on-shell reactance matrix.
+The functional yields $\mathcal{K}[\psi] = K$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K^2)$.
+Rather than finding a wave function $\ket{\psi}$ that satisfies @eq-schrodinger_coupled, our task now has now changed to finding a wave function that makes @eq-kvp_coupled stationary.
+
+The key to creating an efficient emulator from @eq-kvp_coupled follows from a trial wave function ansatz
+$$
+\begin{align} %\label{eq:trial_ansatz}
+    \ket{\widetilde\psi^{s\ell}} \equiv \sum_{i=1}^{N_b} \beta_i^{\ell'\ell} \ket{\psi_i^{s\ell}}
+\end{align}
+$$ {#eq-trial_ansatz}
+where $\{\ket{\psi_i^{s\ell}}\}_s$ is the exact solution to @eq-schrodinger_coupled for a choice of $\param_i$, and where we have labeled the basis coefficient with the indices $\ell',\ell$ which reflect the component of the KVP to be emulated as in @eq-kvp_coupled.
+The reason that each angular component of $\mathcal{K}^{\ell'\ell}$ can be emulated separately---with its own trial wave function---follows, in part, from the fact that @eq-schrodinger_coupled can be solved independently for each choice of $\ell$ (see App.~\ref{sec:formalism_details} for more details).
+Note that for the NN scattering coupled channels considered here, this will result in 3 distinct variational principles being enforced: one for each of $\ell' = \ell = j\pm1$ and one for the off-diagonal component.
+
+Inserting @eq-trial_ansatz into @eq-kvp_coupled yields
+$$
+\mathcal{K}^{\ell'\ell} = \beta_i^{\ell'\ell}K_i^{\ell'\ell} - \frac{1}{2} \beta_i^{\ell'\ell} \Delta \widetilde U_{ij}^{\ell'\ell}\beta_j^{\ell'\ell} %\label{eq:kvp_coupled_reduced}
+$$ {#eq-kvp_coupled_reduced}
+where we have defined
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell} & \equiv 2\mu \braket{\psi_i^{\ell's'} | [H - E]^{s's} | \psi_j^{s\ell}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{\ell' s'} | [H - E]^{s's} | \psi_i^{s\ell}} \notag\\
+    & = 2\mu \braket{\psi_i^{\ell's'} | [V(\theta) - V_j]^{s's} | \psi_j^{s\ell}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{\ell's'} | [V(\theta) - V_i]^{s's} | \psi_i^{s\ell}},
+    %\label{eq:delta_u_tilde}
+\end{aligned}
+$$ {#eq-delta_u_tilde}
+In the final line we have added and subtracted $V_i \equiv V(\param_i)$ and $V_j \equiv V(\param_j)$ to use @eq-schrodinger_coupled.
+Emulating $\psi$ (via @eq-trial_ansatz), and hence $K$ (via @eq-kvp_coupled_reduced), has now reduced to determining the values of $\beta$ that make @eq-kvp_coupled_reduced stationary under the constraint that $\sum_i \beta_i = 1$ such that the wave functions remain normalized.
+Such a solution can be found using a Lagrange multiplier $\lambda$, and is given by
+$$
+\begin{aligned} %\label{eq:coeff_solution}
+    \begin{pmatrix}
+    \Delta \widetilde U^{\ell'\ell} & \vec{1} \\ 
+          \vec{1} \, {}^\intercal & 0
+    \end{pmatrix}
+    \begin{pmatrix}
+          \vec{\beta} \, {}^{\ell'\ell} \\ 
+          \lambda \, {}^{\ell'\ell}
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+          \vec{K} \, {}^{\ell'\ell} \\ 
+          1
+    \end{pmatrix}.
+\end{aligned}
+$$ {#eq-coeff_solution}
+The fact that @eq-coeff_solution is a simple linear system means that if the $N_b$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+
+Thus far we have not specified whether the solution is to be obtained in coordinate space or momentum space.
+The only difference between these approaches is the way we obtain the basis functions $\psi_i$ used to construct the trial ansatz in @eq-trial_ansatz, and thus the manner in which $\Delta \widetilde U$ is evaluated.
+If one had already obtained $\{\psi_i\}$ in coordinate space, then $\Delta \widetilde U$ could be straightforwardly evaluated, particularly for short ranged potentials $V(\param)$ where the asymptotic behavior of $\psi$ is irrelevant. (Note that long-ranged potentials, such as Coulomb, would drop out of @eq-delta_u_tilde if its parameters are fixed.)
+
+In momentum space, we instead initially solve for the $K$ matrix and must relate $K$ to $\psi$ before using @eq-delta_u_tilde.
+There are a couple relations one could use to accomplish this goal: the definition of the scattering wave function using the $K$ matrix
+$$
+\begin{aligned}
+    \ket{\psi} = \ket{\phi} + G_0 K \ket{\phi},
+\end{aligned}
+$$
+where $\phi$ is the free-space wave function, or the definition of $K$ itself
+$$
+\begin{aligned}
+    K\ket{\phi} \equiv V\ket{\psi}.
+\end{aligned}
+$$
+The first relation yields
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | \Delta V_{j}(\param) | \phi_{\ell}}
+    + \braket{\phi_{\ell'} | \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} \notag\\
+    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) | \phi_{\ell}} \notag\\
+    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} + (i \leftrightarrow j),
+\end{aligned}
+$$
+where sums over coupled states are implied by the operator products, and we have defined
+$$
+\begin{aligned}
+    \Delta V_{i}(\param) \equiv V(\param) - V_i
+\end{aligned}
+$$
+for convenience.
+The latter relation yields
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | K_i V_i^{-1} \Delta V_{j}(\param) V_j^{-1} K_j | \phi_{\ell}} + (i \leftrightarrow j).
+\end{aligned}
+$$
+
+Regardless of how @eq-delta_u_tilde is evaluated, the efficient evaluation of $\Delta \widetilde U$ across a range of $\param$ values is critical to the applicability of the emulator.
+This is achieved due to the affine dependence of $V$ on the parameters $\param$:
+$$
+\begin{align}
+    V(\param) = V_0 + \sum_{i=1}^{N_\theta} \theta_i V_i
+\end{align}
+$$
+This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
+The value of $\Delta \widetilde U(\param)$ at any new parameter value is then easily reconstructed from each term.
+
+
+
+## Newton Emulators {#sec-newton} 
+
+The Lippmann-Schwinger (LS) equation provides an alternative to scattering problems and is equivalent to solving the Schrodinger equation.
+The LS equation is an integral equation, rather than a differential equation, whose solution is the reactance matrix $K$ (or, the $T^{\pm}$ matrices). 
+This approach is particularly useful when in momentum space, where the $K$ matrix results from a simple matrix solve operation, which sidesteps the need for a differential equation solver.
+It is possible to build a reduced-order model directly from the LS equation by using the Newton variational principle.
+
+
+
+
+
+## Example
+
+```{python}
+#| echo: false
+#| output: false
+%load_ext autoreload
+%autoreload 2
+%matplotlib inline
+
+from IPython.display import display, Markdown
+from emulate import jupyter_show_class_method, markdown_class_method
+```
+
+
+```{python}
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
+from emulate.utils import (
+    yamaguchi_form_factor_momentum_space,
+    yamaguchi_form_factor_position_space,
+)
+from emulate import CompoundMesh, QuadratureType
+from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
+from emulate import setup_rc_params
+
+setup_rc_params()
+sns.set_palette('pastel')
+```
+
+
+
+```{python}
+mesh = CompoundMesh([0, 0.1, 5, 10], [100, 100, 100, 100])
+k, dk = mesh.x, mesh.w
+r, dr = mesh.x, mesh.w
+a = 0.7
+r_grid = np.linspace(0, 10, 101)
+ell = 0
+
+f_r_grid = np.exp(-a * r_grid**2)
+f_r = np.exp(-a * r**2)
+f_k = gaussian_radial_fourier_transform(x=k, a=a)
+f_r_reverse = fourier_transform_partial_wave(f=f_k, r=k, dr=dk, k=r_grid, ell=ell)
+
+fig, ax = plt.subplots()
+
+ax.plot(r_grid, f_r_grid)
+ax.plot(r_grid, f_r_reverse, label="r2", ls=":")
+```
+
+
+
+```{python}
+from emulate.utils import greens_function_free_space, BoundaryCondition
+from emulate import NewtonEmulator
+
+V0 = np.zeros((len(k), len(k)))
+V1 = (f_k[:, None] * f_k)[:, :, None]
+# q_cm = np.array([0.1, 1])
+q_cm = np.array([0.1, 1, 2])
+nvp = NewtonEmulator(
+    V0=V0,
+    V1=V1,
+    k=k,
+    dk=dk,
+    q_cm=q_cm,
+    boundary_condition=BoundaryCondition.STANDING,
+    nugget=1e-10
+)
+nvp.fit([np.array([1]), np.array([2])])
+# G0 = greens_function_free_space()
+```
+
+
+```{python}
+p_vals = np.linspace(-1, 6, 21)[:, None]
+K_valid = np.array([nvp.predict(p) for p in p_vals])
+K_exact = np.array([nvp.predict(p, full_space=True) for p in p_vals])
+
+
+fig, axes = plt.subplots(1, 2, figsize=(6, 3))
+
+ax = axes[0]
+ax.plot(p_vals, K_exact)
+ax.plot(p_vals, K_valid, ls="--")
+
+ax = axes[1]
+ax.plot(p_vals, K_exact-K_valid)
+```
+
+
+```{python}
+from emulate import cubic_spline_matrix
+
+def predict_separable(p):
+    V = f_k
+    k_cut = np.inf if mesh.is_semi_infinite else None
+    spline = cubic_spline_matrix(k, q_cm)
+    G0 = greens_function_free_space(k=k, dk=dk, q_cm=q_cm, spline=spline, boundary_condition=BoundaryCondition.STANDING, k_cut=k_cut)
+    DL = 1 - G0 @ (p * V**2)
+
+    V2 = gaussian_radial_fourier_transform(x=q_cm, a=a)
+    TL = p * V2**2 / DL * np.pi / 2 * q_cm
+    return TL
+
+
+
+
+# k_cut = np.inf if mesh.is_semi_infinite else None
+# k2 = np.logspace(np.log10(np.min(k)), np.log10(np.max(k)), num=1000, base=10)
+
+# f_k2 = gaussian_radial_fourier_transform(x=q_cm, a=a)
+# TL = f_k2**2 / DL
+
+TL_exact = np.array([predict_separable(p) for p in p_vals])
+
+fig, ax = plt.subplots(1, 1, figsize=(3.4, 3))
+
+ax.plot(p_vals, K_exact, **FULL_KWARGS)
+ax.plot(p_vals, TL_exact, **PRED_KWARGS)
+```
+
+
+```{python}
+from emulate import SeparableKohnEmulator
+from emulate import mass_nucleon, hbar_c
+
+# hbarsq_over_M = hbar_c**2 / mass_nucleon
+hbarsq_over_M = 1
+
+def minn_pot_k_1S0(kp, k, kappa):
+    exp_m = np.exp(- (k - kp)**2 / (4 * kappa))
+    exp_p = np.exp(- (k + kp)**2 / (4 * kappa))
+    return hbarsq_over_M**(-1) * (2 / np.pi) * np.sqrt(np.pi / kappa) * (exp_m - exp_p) / (4 * k * kp)
+
+kappa_r = 1.487
+kappa_s = 0.465
+kappa_t = 0.639
+pot_1S0 = np.stack([minn_pot_k_1S0(k[:, None], k, kappa_r), minn_pot_k_1S0(k[:, None], k, kappa_s)], axis=-1)
+
+# a_vals = [3, 1]
+a_vals = [3]
+# a_vals = [1.0]
+# f_r_vals = [np.exp(-a * r**2) for a in a_vals]
+# f_k_vals = np.array([np.sqrt(hbarsq_over_M**-1) * gaussian_radial_fourier_transform(x=k, a=a) for a in a_vals])
+# f_k_vals /= f_k_vals.max(axis=1, keepdims=True)
+
+f_r_vals = np.array([yamaguchi_form_factor_position_space(r=r, beta=a, ell=0) for a in a_vals])
+f_k_vals = np.array([yamaguchi_form_factor_momentum_space(k=k, beta=a, ell=0) for a in a_vals])
+f_k_vals *= np.sqrt(hbarsq_over_M**-1)
+
+# f_r_vals /= r  # Test out convention differences
+
+n_params = int(len(a_vals)*(len(a_vals)+1)/2)
+# n_params = 2
+p_test = np.array([1, 1, 2])
+# p_test = np.array([1, 2])
+# p_test = np.array([1])
+rng = np.random.default_rng(1)
+p_train = rng.uniform(-10, 2, (4, n_params))
+# kohn.fit(p_train)
+# psi_i, K_i = kohn.predict_wave_function(p_test, return_K=True)
+```
+
+```{python}
+f_k_vals.max(axis=1)
+```
+
+```{python}
+plt.plot(k, f_k_vals.T)
+plt.xlim(0, 10)
+```
+
+```{python}
+plt.plot(k, np.diag(pot_1S0[..., 1]))
+plt.xlim(0, 10)
+```
+
+```{python}
+plt.matshow(pot_1S0[..., 0])
+```
+
+
+
+```{python}
+V1_sep = []
+for i in range(len(a_vals)):
+    for j in range(i, len(a_vals)):
+        if i != j:
+            V1_sep.append(f_k_vals[i][:, None] * f_k_vals[j] + f_k_vals[j][:, None] * f_k_vals[i])
+        else:
+            V1_sep.append(f_k_vals[i][:, None] * f_k_vals[j])
+V1_sep = np.dstack(V1_sep)
+print(V1_sep.shape)
+
+from emulate import NewtonEmulator
+
+
+newton = NewtonEmulator(
+    V0=np.zeros_like(V1_sep[..., 0]),
+    V1=V1_sep,
+    # V0=np.zeros_like(pot_1S0[..., 0]),
+    # V1=pot_1S0,
+    k=k,
+    dk=dk,
+    q_cm=q_cm,
+    boundary_condition=BoundaryCondition.STANDING,
+    nugget=1e-10
+)
+newton.fit(p_train)
+newton.coefficients(p_train[0]) * np.pi / 2
+```
+
+```{python}
+from emulate.utils import yamaguchi_scattering_amplitude
+p_test = p_train[1]
+
+fig, ax = plt.subplots(figsize=(3, 3))
+plt.plot(q_cm, newton.predict(p_test), **PRED_KWARGS)
+plt.plot(q_cm, newton.predict(p_test, full_space=True), **FULL_KWARGS)
+plt.plot(q_cm, yamaguchi_scattering_amplitude(q_cm, a_vals[0], strength=p_test))
+```
+
+
+
+```{python}
+from emulate import KohnLippmannSchwingerEmulator
+
+V1_sep_r = []
+for i in range(len(a_vals)):
+    for j in range(i, len(a_vals)):
+        if i != j:
+            V1_sep_r.append(f_r_vals[i][:, None] * f_r_vals[j] + f_r_vals[j][:, None] * f_r_vals[i])
+        else:
+            V1_sep_r.append(f_r_vals[i][:, None] * f_r_vals[j])
+V1_sep_r = np.dstack(V1_sep_r)
+
+ls_kohn = KohnLippmannSchwingerEmulator(
+    V0=np.zeros_like(V1_sep_r[..., 0]),
+    V1=V1_sep_r,
+    r=r,
+    dr=dr,
+    NVP=newton,
+    inv_mass=hbarsq_over_M,
+)
+ls_kohn.fit(p_train)
+```
+
+
+```{python}
+from emulate.utils import yamaguchi_radial_wave_function
+
+kohn = SeparableKohnEmulator(v_r=f_r_vals, r=r, dr=dr, v_k=f_k_vals, k=k, dk=dk, q_cm=q_cm, inv_mass=hbarsq_over_M, ell=0, nugget=1e-7)
+
+# p_test = np.array([1])
+p_test = p_train[0]
+kohn.fit(p_train)
+# fig, ax = plt.subplots(figsize=(3,3))
+# ax.plot(r, kohn.psi_train[:, 0].T)
+# ax.set_xlim(0, 20)
+# plt.show()
+K_kohn = q_cm * kohn.emulate_reactance(p_test)
+# K_kohn = q_cm * kohn.predict_wave_function(p_test, return_K=True)[1]
+
+psi_kohn = kohn.predict(p_test)
+psi_kohn_exact = kohn.predict(p_test, full_space=True)
+psi_kohn_ls = ls_kohn.predict(p_test, full_space=False)
+psi_analytic = yamaguchi_radial_wave_function(r=r, q_cm=q_cm[:, None], beta=a_vals[0], strength=p_test).T
+
+K_newt = newton.predict(p_test, full_space=True)
+
+
+
+fig, axes = plt.subplots(1, 2, figsize=(6,3))
+ax = axes[0]
+ax.plot(r, psi_kohn_exact, **FULL_KWARGS)
+ax.plot(r, psi_kohn, **PRED_KWARGS)
+ax.plot(r, psi_kohn_ls, ls="--")
+ax.plot(r, psi_analytic, ls=":", c='r')
+ax.set_xlim(0, 20)
+
+# fig, ax = plt.subplots(figsize=(3,3))
+ax = axes[1]
+ax.plot(q_cm, K_kohn, **PRED_KWARGS)
+# ax.plot(q_cm, K_kohn * K_newt.max() / K_kohn.max())
+ax.plot(q_cm, K_newt, **FULL_KWARGS)
+```
+
+```{python}
+p_test
+```
+
+
+```{python}
+K_half_kohn = kohn.compute_half_on_shell_reactance(p_test, include_q=False)
+K_half_newt = newton.reactance(
+    p=p_test, include_q=False, shell="half", return_gradient=False
+)
+plt.plot(k, K_half_kohn.T)
+plt.plot(k, K_half_newt.T, ls='--')
+plt.xlim(0, 10)
+```
+
+
+```{python}
+Lam = kohn.compute_strength_matrix(p_test)
+print(Lam.shape, kohn.v_k.shape)
+V1_kohn_test = kohn.v_k.T @ Lam @ kohn.v_k
+V1_newt_test = newton.V1 @ p_test
+np.allclose(V1_kohn_test, V1_newt_test, rtol=1, atol=1e-10)
+```
+
+```{python}
+newton.V1 @ p_test
+```
+
+```{python}
+V1_kohn_test
+```
+
+```{python}
+plt.matshow(V1_kohn_test - V1_newt_test)
+```
+
+
+
+```{python}
+kohn.coefficients(p_train[0]), kohn.coefficients(p_train[0]).sum(-1), newton.coefficients(p_train[0])
+```

@@ -2,32 +2,50 @@
 {{< include macros.qmd >}}
 :::
 
+
 # Introduction
 
 ## Motivation
 
+Emulators---fast numerical models that approximate the expensive *simulator*---can open the door to a wide range of techniques and applications in nuclear physics. Otherwise impractical calculations could be emulated with fewer computational resources.
+These are timely developments, as nuclear simulations are being pushed toward larger masses, within unstable regimes, and using sophisticated Bayesian methods.
+But the nuclear physics community has not scratched the surface of the types of emulators that could be crafted or explored their full range of applications.
+Key to the broader adoption of these tools is both the evangelization of their potential and pedagogical guides for those first starting in this field.
+This review is aimed at achieving both of these goals.
+
+::: {.content-visible when-format="pdf"}
+To do so, we have created a rather unconventional document comprised of both a static, published PDF, which you are reading now, along with a corresponding website containing supplemental material and all code that generates the results.
+Interested individuals can dynamically generate different versions of the document based on tunable parameters.
+We hope that this format both encourages readers to experiment and build upon the examples presented here, and enables new applications.
+:::
+
+::: {.content-visible unless-format="pdf"}
+To do so, we have created a rather unconventional document comprised of both a static, [published PDF](...), along with a corresponding website containing supplemental material and all code that generates the results.
+Interested individuals can dynamically generate different versions of the document based on tunable parameters.
+We hope that this format both encourages readers to experiment and build upon the examples presented here, and enables new applications.
+Instructions for generating this site under different parameter choices can be found [here](...).
+:::
+
+Emulators come in a variety of flavors which can be categorized according to multiple schemes.
+One useful taxonomy places emulators on a spectrum of data-driven to model-driven.
+Data-driven emulators can treat the exact simulator results as a black box and build an emulator from its predictions.
+Model driven emulators instead take the governing (differential) equations as given, from which the emulator is derived as a low order approximation.
+
+Some variants of data driven emulators have been applied with success within nuclear physics.
+
+On the other hand, although the theory of model driven emulators is quite mature, the adoption of such tools is still in its infancy in nuclear physics.
+
+The remainder of this document is structured as follows.
+@sec-model-reduction introduces the key concepts of model reduction used for deriving reduced-order models.
+@sec-eigen-emulators derives reduced-order emulators for eigen-systems and contrasts these with alternative emulators in an example setting.
+@sec-scattering-emulators continues with two scattering examples based on the Kohn and Newton variational principles.
 
 
 
 
-| Variable     | Usage Here |
+<!-- | Variable     | Usage Here |
 |--------------|--------------------------------------------|
 | $\coeffs$    | coefficients in the trial wave function    |
 | ...    | ...    |
 
-: Nomenclature {#tbl-nomenclature}
-
-
-$$
-\coeffs = \frac{a}{b}
-$$
-
-$$
-\begin{align}
-a & = \frac{a}{b} \\
-& = 2
-\end{align}
-$$ {#eq-test}
-
-
-@eq-test
+: Nomenclature {#tbl-nomenclature} -->

@@ -1,10 +1,5 @@
 ---
 output: html_notebook
-author:
-  - name: Jordan Melendez
-    affiliation: The Ohio State University
-    orcid: 0000-0003-1359-1594
-date: "2022-Aug-20"
 format:
   html:
     code-fold: show
@@ -19,6 +14,7 @@ license: "CC BY"
 
 # Model Reduction {#sec-model-reduction}
 
+
 ::: {.hidden}
 {{< include macros.qmd >}}
 :::
@@ -26,11 +22,36 @@ license: "CC BY"
 
 ## What is model reduction?
 
-This discusses the basics of model reduction.
+The holy grail of complex physical simulations is an *emulator* that captures most important features of the simulator, but is much cheaper to evaluate.
+The field of model reduction provides a set of tools for constructing such emulators, or reduced-order models, in a variety of contexts.
+For instance, 
 
 
 ## Gaussian Processes
 
+The complexity of a simulator can be alleviated by training an emulator on evaluations of the simulator at a few well chosen points.
+Subsequent evaluations are cheap because the emulator can be used in place of the simulator.
+Gaussian processes are one such flexible emulator.
+
+A Gaussian process (GP) is a non-parametric model used for both regression and classification tasks.
+Like its multivariate counterpart, GPs are fully specified by their mean and covariance.
+But draws from a GP are functions $f(x)$, which makes the mean $m(x)$ and covariance $\Sigma(x, x')$ also functions of $x$.
+However, one can relate these back to less abstract multivariate distribution via the defining property of a GP:
+
+> A Gaussian process is a collection of random variables, any finite number of which have a joint Gaussian distribution.
+
+GPs share the features that make Gaussian distributions attractive in other contexts:
+
+* simple, closed-form expressions result from Gaussian distributions
+* Gaussians closely approximate many naturally occuring phenomena
+* ...
+
+This has led to its incorporation into many machine learning libraries, such as `scikit-learn` and `Tensorflow`, and has found widespread use across disciplines ranging from geography to biology.
+Indeed, it is now simpler than ever to emulate high-fidelity models with a GP.
+
+```{python}
+from sklearn.gaussian_process import GaussianProcessRegressor
+```
 
 
 ## Variational principles & the Ritz method
@@ -42,9 +63,7 @@ The use of variational principles as a means to solve otherwise difficult proble
 
 Variational principles begin with the definition of a scalar functional $\action$ that can be written as
 $$
-\begin{align}
     \action[\psi] = \int_\Omega \dd{\Omega} F[\psi, \psi', \cdots] + \int_\Gamma \dd{\Gamma} E[\psi, \psi', \cdots]
-\end{align}
 $$
 where $F$ and $E$ are known differential operators, and $\Omega$ and $\Gamma$ are the domain and boundary, respectively.
 The unknown function $\psi$ is determined as that which makes $\action$ *stationary*, i.e., $\delta\action = 0$.
@@ -52,39 +71,39 @@ The unknown function $\psi$ is determined as that which makes $\action$ *station
 The use of an *action* $\action$ to derive Euler-Lagrange equations is common practice in the physical sciences.
 But if one first proposes an *ansatz* as a trial function
 $$
-\begin{align}
+\begin{aligned}
     \trial\psi = \sum_{i=1}^{\nbasis} \coeff_i\psi_i = X\coeffs
-\end{align}
+\end{aligned}
 $$ {#eq-trial_general}
 then variational principles lead straightforwardly to an emulator $\trial\psi \approx \psi$.
 Rather than stipulate that $\delta\action = 0$ for any arbitrary variation $\delta\psi$, we instead extract the optimal coefficients, $\coeffs_\star$, as those for which $\action$ is stationary under variations in $\coeffs$:
 $$
-\begin{align}
+\begin{aligned}
     \delta\action = \sum_{i=1}^{\nbasis} \frac{\partial\action}{\partial\coeff_i}\delta\coeff_i = 0
-\end{align}
+\end{aligned}
 $$ {#eq-action_stationary_ansatz}
 
-The general case would involve a numerical search for the solution to @eq-action_stationary_ansatz but if $\action$ is quadratic in $\psi$ then the solution can be determined exactly.
+The general case would involve a numerical search for the solution to @eq-action_stationary_ansatz or \eqref{eq-action_stationary_ansatz} but if $\action$ is quadratic in $\psi$ then the solution can be determined exactly.
 In this case $\action$ can be written as
 $$
-\begin{align}
+\begin{aligned}
     \action = \coeffs^\dagger A \coeffs + \vec{b}\cdot \coeffs + c
-\end{align}
+\end{aligned}
 $$
 for some $A$, $\vec{b}$, and $c$.
 The quadratic portion could be made symmetric---if it is not already---by writing it as
 $$
-\begin{align}
+\begin{aligned}
     \action & = \coeffs^\dagger A_s \coeffs+ \vec{b}\cdot \coeffs + c \\
     A_s & = \frac{A + A^\dagger}{2}
-\end{align}
+\end{aligned}
 $$
 which can be desirable for numerical purposes.
 It then follows that the optimal coefficients, $\coeffs_\star$ are those for which
 $$
-\begin{align}
+\begin{aligned}
     \delta\action = A_s\coeffs_\star + \vec{b} = 0
-\end{align}
+\end{aligned}
 $$ {#eq-coefficient_solve_quadratic}
 which requires a simple matrix solve operation to obtain $\coeffs_\star$.
 This solve occurs only in a space of size $\nbasis$, the number of basis elements $\{\psi_i\}$, rather than in the much larger space of $\psi$ itself.

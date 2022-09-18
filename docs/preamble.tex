@@ -1,0 +1,56 @@
+%\setcitestyle{square} % for Physics and Applied Mathematics and Statistics articles
+\usepackage{url,hyperref,lineno,microtype,subcaption}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{listings}
+% \usepackage{physics}  % do not use
+\usepackage{braket}
+\usepackage[ISO]{diffcoeff}
+
+% Try out cell padding to handle fractions
+% Must prefix column formatters with `S'
+\usepackage{cellspace}
+\setlength\cellspacetoplimit{4pt}
+\setlength\cellspacebottomlimit{4pt}
+\renewcommand{\arraystretch}{1.7}
+
+\usepackage{booktabs}
+
+% Think about defining new standalone macros for this work
+% \input{buqeye_macros}
+
+%\linenumbers
+\graphicspath{{figures/}{template-2022/}}
+
+
+% color links (citation, equation, etc.) and define keywords
+\definecolor{linkcolor}{rgb}{0,0,0.40} 
+\hypersetup{%
+    pdfsubject=Paper,
+    pdfkeywords={nuclear physics} {Bayesian} {chiral EFT} {emulator} {reduced-order models} {variational principles},
+    unicode = true,
+    breaklinks = true,
+    colorlinks = true,
+    linkcolor = linkcolor,
+    citecolor = linkcolor,
+    menucolor = linkcolor,
+    urlcolor = linkcolor
+}
+
+
+% Clean this up later:
+\def\Address{$^{1}$Facility for Rare Isotope Beams, Michigan State University, MI 48824, USA \\
+$^{2}$Department of Physics, The Ohio State University, Columbus, OH 43210, USA  }
+% The Corresponding Author should be marked with an asterisk
+% Provide the exact contact address (this time including street name and city zip code) and email of the corresponding author
+\def\corrAuthor{Christian Drischler}
+\def\corrEmail{drischler@frib.msu.edu}
+\def\firstAuthorLast{Drischler {et~al.}} %use et al only if is more than 1 author
+\def\Authors{C. Drischler\,$^{1,*}$, R.~J. Furnstahl\,$^{2}$, A.~J. Garcia\,$^{2}$, J.~A. Melendez\,$^{2}$, and Xilin Zhang\,$^{1}$}
+
+
+\author[\firstAuthorLast ]{\Authors} %This field will be automatically populated
+\address{} %This field will be automatically populated
+\correspondance{} %This field will be automatically populated
+\extraAuth{}%
+
+% Leave a blank line between paragraphs instead of using \\

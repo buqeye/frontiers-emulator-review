@@ -1,7 +1,5 @@
 ---
 output: html_notebook
-author: "Jordan Melendez"
-date: "2022-Aug-08"
 format:
   html:
     code-fold: show
@@ -52,30 +50,30 @@ This notebook describes the inner workings of the eigen-emulator and provides ex
 
 For bound states, we can write down the following functional whose stationary solution approximates the energy, that is $\action = \mathcal{E}$, where
 $$
-\begin{align}
+\begin{aligned}
     \mathcal{E}[\trial\psi] & = \braket{\trial\psi | H | \trial\psi} - \subspace{E} (\braket{\trial\psi | \trial\psi} - 1).
-\end{align}
+\end{aligned}
 $$
 and the normalization of the wave function has been imposed with a Lagrange multiplier $\subspace{E}$.
 Imposing stationarity yields
 $$
-\begin{align}
+\begin{aligned}
     \delta\mathcal{E}[\trial\psi] & = 0 = 2\braket{\delta\trial\psi | [H-\subspace{E}] | \trial\psi} - \delta\subspace{E} [{\braket{\trial\psi | \trial\psi}} - 1]
-\end{align}
+\end{aligned}
 $$
 If $\ket{\trial\psi} = X\coeffs$ then we obtain two relationships from the above constraints
 $$
-\begin{align}
+\begin{aligned}
     \subspace{H}\coeffs & = \subspace{E}\subspace{N} \coeffs \\
     \coeffs^\dagger \subspace{N} \coeffs & = 1
-\end{align}
+\end{aligned}
 $$
 where $\subspace{H} \equiv X^\dagger H X$ and $\subspace{N} \equiv X^\dagger X$.
 The meaning of $\subspace{E}$ can be understood by substituting these relationships back into the variational form:
 $$
-\begin{align}
+\begin{aligned}
     \mathcal{E}[\trial\psi] = \subspace{E} \coeffs^\dagger \subspace N \coeffs = \subspace{E}
-\end{align}
+\end{aligned}
 $$
 Thus $\subspace{E}$ is an approximation to the energy.
 
@@ -159,7 +157,7 @@ emulator.fit(p_train)
 The code straightforwardly follows Eqs.~(xx) and (yy) in the review article, as seen below:
 ```{python}
 #| echo: false
-#| output: true
+#| output: asis
 #| code-fold: true
 jupyter_show_class_method(EigenEmulator, 'fit')
 ```
