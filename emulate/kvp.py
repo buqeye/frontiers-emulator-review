@@ -210,12 +210,13 @@ class BaseKohnEmulator:
         if coefficients is None:
             coefficients = self.coefficients(p)
         dU = self.compute_dU(p)
-        # return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
-        #     "qn,qnm,qm->q", coefficients, dU, coefficients
-        # )
         return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
             "qn,qnm,qm->q", coefficients, dU, coefficients
         )
+        # return np.einsum("qn,nq->q", coefficients, -self.K_train) - 0.5 * np.einsum(
+        #     "qn,qnm,qm->q", coefficients, dU, coefficients
+        # )
+        # return np.einsum("qn,nq->q", coefficients, self.K_train)
 
 
 class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
@@ -227,9 +228,11 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
         dr,
         NVP,
         inv_mass,
+        ell,
     ):
         self.NVP = NVP
         nugget = NVP.nugget
+        self.ell = ell
         super().__init__(
             V0=V0, V1=V1, r=r, dr=dr, q_cm=NVP.q_cm, nugget=nugget, inv_mass=inv_mass
         )
@@ -249,20 +252,21 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
         )
         from scipy.special import spherical_jn
 
-        ell = 0
+        r = self.r
         G0 = self.NVP.G0
+        k = self.NVP.k
+        q_cm = self.NVP.q_cm
+        Sp = self.NVP.Sp
+
         G0_K = (2 / np.pi) * G0 * K_half
-        jlk = spherical_jn(n=ell, z=self.r[:, None] * self.NVP.k)
-        n_r = len(self.r)
-        n_q = self.NVP.n_q
-        psi = np.zeros((n_r, n_q))
-        for i, ri in enumerate(self.r):
-            for j, q in enumerate(self.NVP.q_cm):
-                j_on = spherical_jn(n=ell, z=ri * q)
-                psi[i, j] = j_on + np.sum(jlk[i] @ G0_K[j])
+        # G0_K = G0 * K_half
+        j_k = spherical_jn(n=self.ell, z=r[:, None] * k)
+        j_q = spherical_jn(n=self.ell, z=r[:, None] * q_cm)
+        j_G0_K = np.einsum("rk,qk->rq", j_k, G0_K)
+        psi = j_q + j_G0_K
 
         if return_K:
-            K_on = np.einsum("ij,ij->i", self.NVP.Sp, K_half)
+            K_on = np.einsum("ij,ij->i", Sp, K_half)
             return psi, K_on
         return psi
 
@@ -286,11 +290,6 @@ class SeparableKohnEmulator(BaseKohnEmulator):
         V1 = []
         for i in range(n_form_factors):
             for j in range(i, n_form_factors):
-                # if i != j:
-                #     mult = 2
-                # else:
-                #     mult = 1
-                # V1.append(mult * v_r[i][:, None] * v_r[j])
                 if i != j:
                     V1.append(v_r[i][:, None] * v_r[j] + v_r[j][:, None] * v_r[i])
                 else:
@@ -347,7 +346,6 @@ class SeparableKohnEmulator(BaseKohnEmulator):
     def compute_half_on_shell_reactance(self, p, include_q=True):
         strength = self.compute_strength_matrix(p)
         Id = np.eye(self.n_form_factors)
-        # Id = 1
         tau = np.linalg.solve(Id - strength @ self.vGv, strength[None, ...])
         v_q_cm = np.einsum("nk,qk->nq", self.v_k, self.Sp)
         vTv = np.einsum("nk,qnm,mq->kq", self.v_k, tau, v_q_cm)
@@ -366,33 +364,16 @@ class SeparableKohnEmulator(BaseKohnEmulator):
 
     def predict_wave_function(self, p, return_K=False):
         self.validate_parameters(p)
-        # strength = self.compute_strength_matrix(p)
-        # tau = np.linalg.solve(
-        #     (np.eye(self.n_form_factors) - strength @ self.vGv), strength[None, ...]
-        # )
-        # v_q_cm = np.einsum("nk,qk->nq", self.v_k, self.Sp)
-        # vTv = np.einsum("nk,qnm,mq->kq", self.v_k, tau, v_q_cm)
-        # K_half = self.q_cm * (np.pi / 2) * vTv
         K_half = self.compute_half_on_shell_reactance(p, include_q=False)
         K = np.sum(self.Sp * K_half, axis=1)
 
         r = self.r
-        n_r = len(r)
-
         G0_K = (2 / np.pi) * self.G0 * K_half
-        # G0_K = self.G0 * K_half.T / self.q_cm[:, None]
-        # G0_K = np.sqrt(2 / np.pi) ** -1 * self.G0 * K_half.T / self.q_cm[:, None]
-
-        j_lk = spherical_jn(n=self.ell, z=r[:, None] * self.k)
-        j_on = spherical_jn(n=self.ell, z=r[:, None] * self.q_cm)
-        j_G0_K = np.einsum("rk,qk->rq", j_lk, G0_K)
-        psi = j_on + j_G0_K
-
-        # psi = np.zeros((n_r, self.n_q))
-        # for i, ri in enumerate(r):
-        #     for j, q in enumerate(self.q_cm):
-        #         j_on = spherical_jn(n=self.ell, z=ri * q)
-        #         psi[i, j] = j_on + np.sum(j_lk[i] @ G0_K[j])
+        # G0_K = self.G0 * K_half
+        j_k = spherical_jn(n=self.ell, z=r[:, None] * self.k)
+        j_q = spherical_jn(n=self.ell, z=r[:, None] * self.q_cm)
+        j_G0_K = np.einsum("rk,qk->rq", j_k, G0_K)
+        psi = j_q + j_G0_K
 
         if return_K:
             return psi, K

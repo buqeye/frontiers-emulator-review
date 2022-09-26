@@ -1,3 +1,4 @@
+from typing import Union, Optional, Dict, List
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 from numpy.linalg import eigh, eigvalsh
@@ -5,14 +6,7 @@ from scipy.special import eval_genlaguerre, gammaln
 from scipy.integrate import quadrature
 
 from .constants import hbar_c, pi
-from enum import IntEnum, unique as uniqueEnum, Enum
-from typing import Union, Optional, Dict, List
-
-
-class BoundaryCondition(Enum):
-    INCOMING = -1  # -ie
-    OUTGOING = +1  # +ie
-    STANDING = +0  # principal value
+from .types import BoundaryCondition, QuadratureType
 
 
 def markdown_class_method(cls, method):
@@ -162,6 +156,14 @@ def yamaguchi_form_factor_position_space(r, beta, ell=0):
     )
 
 
+def schrodinger_residual(psi, V, r, dr, q_cm, ell):
+    u = r * q_cm * psi
+    d_u = np.gradient(u, r, axis=-1)
+    d2_u = np.gradient(d_u, r, axis=-1)
+    angular = ell * (ell + 1) / r**2
+    return -d2_u + angular * u + ((r * dr * u) @ V) - q_cm**2 * u
+
+
 def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
     pre = 4 * beta * strength * (pi / 2)
     if include_q:
@@ -175,11 +177,30 @@ def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
 def yamaguchi_radial_wave_function(r, q_cm, beta, strength):
     from scipy.special import spherical_jn
 
-    f = yamaguchi_scattering_amplitude(
-        q_cm=q_cm, beta=beta, strength=strength, include_q=True
-    )
+    # f = yamaguchi_scattering_amplitude(
+    #     q_cm=q_cm, beta=beta, strength=strength, include_q=True
+    # )
+    # j_ell = spherical_jn(0, r * q_cm)
+    # psi = j_ell + f * (j_ell - np.exp(-beta * r)) / r
+    # return psi
+
+    # f = yamaguchi_scattering_amplitude(
+    #     q_cm=q_cm, beta=beta, strength=strength, include_q=False
+    # )
+    # print(f)
+    # j_ell = spherical_jn(0, r * q_cm)
+    # pre = 1
+    # # pre = 2 / pi
+    # # pre = pi / 2
+    # psi = j_ell + pre * f * (j_ell - np.exp(-beta * r)) / r
+
     j_ell = spherical_jn(0, r * q_cm)
-    psi = j_ell + f * (j_ell - np.exp(-beta * r)) / r
+    pre = (2 * pi * beta * strength) / (
+        4 * beta * (beta**2 + q_cm**2) ** 2
+        + pi * strength * (beta**2 - q_cm**2)
+    )
+    # pre *= pi / 2
+    psi = j_ell - pre * (np.cos(q_cm * r) - np.exp(-beta * r)) / r
     return psi
 
 
@@ -521,28 +542,6 @@ def leggauss_shifted(deg, a=-1, b=1):
     w *= (b - a) / 2.0
     x = ((b - a) * x + (b + a)) / 2.0
     return x, w
-
-
-@uniqueEnum
-class QuadratureType(IntEnum):
-    GaussLegendre = 0
-    GaussLobatto = 1
-    SemiInfinite = 2
-    ExponentialGaussLegendre = 3
-    ExponentialGaussLobatto = 4
-
-    @classmethod
-    def from_suffix(cls, suffix):
-        suffix = str(suffix).lower()
-        if suffix == "l":
-            return cls.GaussLobatto
-        if suffix == "i":
-            return cls.SemiInfinite
-        if suffix == "e":
-            return cls.ExponentialGaussLegendre
-        if suffix == "f":
-            return cls.ExponentialGaussLobatto
-        return cls.GaussLegendre
 
 
 class CompoundMesh:
