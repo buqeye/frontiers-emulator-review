@@ -1,5 +1,8 @@
 /.quarto/
 /_site/
 /_book/
-
+/*_files/
 libs/
+*.ipynb
+
+BUQEYE-Guide-to-Emulators-in-Nuclear-Physics.tex

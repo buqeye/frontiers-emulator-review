@@ -144,3 +144,6 @@ dmypy.json
 *.fdb_latexmk
 *.snm
 *.synctex.gz
+
+# IDE Stuff
+.vscode
