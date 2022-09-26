@@ -27,7 +27,7 @@ def test_lippmann_schwinger_solver():
 
 
 def test_separable_potential_solver():
-    # Rule: The analytic Yamaguchi scattering amplitude should match the empirical version from the LS equation
+    # Rule: The separable Lippmann-Schwinger solver should match the standard solver
 
     # Given a quadrature mesh
     n_intervals = 21
@@ -80,7 +80,7 @@ def test_separable_potential_solver():
     )
     K_half_separable = separable.compute_half_on_shell_reactance(p, include_q=False)
 
-    # Then the K matrix from the LS equation and the analytic version should match
+    # Then the K matrix from the standard LS equation and the separable version should match
     np.testing.assert_allclose(
         actual=K_half_separable, desired=K_half_schwinger, atol=1e-5, rtol=1e-1
     )
