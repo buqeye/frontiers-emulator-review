@@ -161,7 +161,8 @@ def schrodinger_residual(psi, V, r, dr, q_cm, ell):
     d_u = np.gradient(u, r, axis=-1)
     d2_u = np.gradient(d_u, r, axis=-1)
     angular = ell * (ell + 1) / r**2
-    return -d2_u + angular * u + ((r * dr * u) @ V) - q_cm**2 * u
+    #return -d2_u + angular * u + ((r * dr * u) @ V) - q_cm**2 * u 
+    return -d2_u + angular * u + ((dr * u) @ V) - q_cm**2 * u 
 
 
 def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
