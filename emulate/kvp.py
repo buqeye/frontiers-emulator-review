@@ -125,8 +125,8 @@ class BaseKohnEmulator:
         self.K_train = K_train
 
         # For speed, create the matrices needed for solving for the coefficients once here.
-        # We will overwrite the upper right block each time it is needed.
-        # Add nugget to final diagonal so that it will not need to be adjusted later
+        # We will overwrite the upper left block each time it is needed.
+        # Add nugget to lower right entry so that it will not need to be adjusted later
         self._dU_expanded = np.block(
             [
                 [np.empty((n_q, n_train, n_train)), np.ones((n_q, n_train, 1))],
