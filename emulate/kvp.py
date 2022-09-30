@@ -124,6 +124,17 @@ class BaseKohnEmulator:
         self.psi_train = psi_train
         self.K_train = K_train
 
+        # For speed, create the matrices needed for solving for the coefficients once here.
+        # We will overwrite the upper right block each time it is needed.
+        # Add nugget to final diagonal so that it will not need to be adjusted later
+        self._dU_expanded = np.block(
+            [
+                [np.empty((n_q, n_train, n_train)), np.ones((n_q, n_train, 1))],
+                [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1)) + self.nugget],
+            ]
+        )
+        self._tau_expanded = np.block([[-self.K_train], [np.ones(n_q)]])
+
         return self
 
     def predict(self, p, full_space=False):
@@ -139,17 +150,8 @@ class BaseKohnEmulator:
         return self.dU0 + self.dU1 @ p
 
     def coefficients_and_multiplier(self, p):
-        dU = self.compute_dU(p)
-        n_train = len(self.p_train)
-        n_q = self.n_q
-        mat = np.block(
-            [
-                [dU, np.ones((n_q, n_train, 1))],
-                [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1))],
-            ]
-        )
-        mat = mat + self.nugget * np.eye(n_train + 1)
-        vec = np.block([[-self.K_train], [np.ones(n_q)]])
+        mat = self.matrix_with_lagrange(p)
+        vec = self._tau_expanded
         c = np.linalg.solve(mat, vec.T)
         return c
 
@@ -176,15 +178,10 @@ class BaseKohnEmulator:
     def matrix_with_lagrange(self, p):
         dU = self.compute_dU(p)
         n_train = len(self.p_train)
-        n_q = self.NVP.n_q
-        mat = np.block(
-            [
-                [dU, np.ones((n_q, n_train, 1))],
-                [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1))],
-            ]
-        )
-        mat = mat + self.nugget * np.eye(n_train + 1)
-        return mat
+        # Overwrite existing matrix so that no new memory needs to be allocated
+        # The nugget has already been added to the bottom right entry during the creation of this matrix
+        self._dU_expanded[:, :n_train, :n_train] = dU + self.nugget * np.eye(n_train)
+        return self._dU_expanded
 
     def matrix_without_lagrange(self, p):
         n_train = len(self.p_train)
