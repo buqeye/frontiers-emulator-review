@@ -126,14 +126,25 @@ class BaseKohnEmulator:
 
         # For speed, create the matrices needed for solving for the coefficients once here.
         # We will overwrite the upper left block each time it is needed.
-        # Add nugget to lower right entry so that it will not need to be adjusted later
+        # The lower right entry does not get a nugget added to it (if it did, the coefficients don't sum to one)
+        dU_toy_array = np.empty((n_q, n_train, n_train))
         self._dU_expanded = np.block(
             [
-                [np.empty((n_q, n_train, n_train)), np.ones((n_q, n_train, 1))],
-                [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1)) + self.nugget],
+                [dU_toy_array, np.ones((n_q, n_train, 1))],
+                [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1))],
             ]
         )
         self._tau_expanded = np.block([[-self.K_train], [np.ones(n_q)]])
+
+        # Determine optimal einsum path once so that it does not unnecessarily compute it every time during emulation
+        coeff_toy_array = np.ones((n_q, n_train))
+        self._c_dU_c_opt_path = np.einsum_path(
+            "qn,qnm,qm->q",
+            coeff_toy_array,
+            dU_toy_array,
+            coeff_toy_array,
+            optimize="optimal",
+        )[0]
 
         return self
 
@@ -179,7 +190,7 @@ class BaseKohnEmulator:
         dU = self.compute_dU(p)
         n_train = len(self.p_train)
         # Overwrite existing matrix so that no new memory needs to be allocated
-        # The nugget has already been added to the bottom right entry during the creation of this matrix
+        # The lower right entry does not get a nugget added to it (if it did, the coefficients don't sum to one)
         self._dU_expanded[:, :n_train, :n_train] = dU + self.nugget * np.eye(n_train)
         return self._dU_expanded
 
@@ -192,8 +203,8 @@ class BaseKohnEmulator:
         return mat
 
     def coefficients(self, p):
-        # return self.coefficients_and_multiplier(p)[:, :-1]
-        return self.coefficients_without_multiplier(p)
+        return self.coefficients_and_multiplier(p)[:, :-1]
+        # return self.coefficients_without_multiplier(p)
 
     def emulate_wave_function(self, p, return_K=False):
         c = self.coefficients(p)
@@ -207,9 +218,16 @@ class BaseKohnEmulator:
         if coefficients is None:
             coefficients = self.coefficients(p)
         dU = self.compute_dU(p)
-        return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
-            "qn,qnm,qm->q", coefficients, dU, coefficients
+        return np.sum(coefficients * self.K_train.T, axis=-1) - 0.5 * np.einsum(
+            "qn,qnm,qm->q",
+            coefficients,
+            dU,
+            coefficients,
+            optimize=self._c_dU_c_opt_path,
         )
+        # return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
+        #     "qn,qnm,qm->q", coefficients, dU, coefficients
+        # )
         # return np.einsum("qn,nq->q", coefficients, -self.K_train) - 0.5 * np.einsum(
         #     "qn,qnm,qm->q", coefficients, dU, coefficients
         # )
