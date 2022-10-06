@@ -187,664 +187,99 @@ sns.set_palette('pastel')
 
 
 ```{python}
-# mesh = CompoundMesh([0, 0.1, 5, 10, 100], [100, 100, 100, 100, 100])
-mesh = CompoundMesh([0, 1, 5, 10, 100], [100, 100, 100, 100, 100])
-k, dk = mesh.x, mesh.w
-r, dr = mesh.x, mesh.w
-a = 0.7
-r_grid = np.linspace(0, 10, 101)
+#| tags: [parameters]
+
+hbar2_over_2mu = 1
+nugget = 1e-10
+n_train = 10
 ell = 0
-
-f_r_grid = np.exp(-a * r_grid**2)
-f_r = np.exp(-a * r**2)
-f_k = gaussian_radial_fourier_transform(x=k, a=a)
-f_r_reverse = fourier_transform_partial_wave(f=f_k, r=k, dr=dk, k=r_grid, ell=ell)
-
-fig, ax = plt.subplots()
-
-ax.plot(r_grid, f_r_grid)
-ax.plot(r_grid, f_r_reverse, label="r2", ls=":")
 ```
 
 
-
+Create a compound mesh object for Gaussian quadrature needed below.
 ```{python}
-from emulate.utils import greens_function_free_space
-from emulate import BoundaryCondition
-from emulate import NewtonEmulator
-
-V0 = np.zeros((len(k), len(k)))
-V1 = (f_k[:, None] * f_k)[:, :, None]
-# q_cm = np.array([0.1, 1])
-q_cm = np.array([0.1, 1, 2])
-nvp = NewtonEmulator(
-    V0=V0,
-    V1=V1,
-    k=k,
-    dk=dk,
-    q_cm=q_cm,
-    boundary_condition=BoundaryCondition.STANDING,
-    nugget=1e-10
-)
-nvp.fit([np.array([1]), np.array([2])])
-# G0 = greens_function_free_space()
-```
-
-
-```{python}
-p_vals = np.linspace(-1, 6, 21)[:, None]
-K_valid = np.array([nvp.predict(p) for p in p_vals])
-K_exact = np.array([nvp.predict(p, full_space=True) for p in p_vals])
-
-
-fig, axes = plt.subplots(1, 2, figsize=(6, 3))
-
-ax = axes[0]
-ax.plot(p_vals, K_exact)
-ax.plot(p_vals, K_valid, ls="--")
-
-ax = axes[1]
-ax.plot(p_vals, K_exact-K_valid)
-```
-
-
-```{python}
-from emulate import cubic_spline_matrix
-
-def predict_separable(p):
-    V = f_k
-    k_cut = np.inf if mesh.is_semi_infinite else None
-    spline = cubic_spline_matrix(k, q_cm)
-    G0 = greens_function_free_space(k=k, dk=dk, q_cm=q_cm, spline=spline, boundary_condition=BoundaryCondition.STANDING, k_cut=k_cut)
-    DL = 1 - G0 @ (p * V**2)
-
-    V2 = gaussian_radial_fourier_transform(x=q_cm, a=a)
-    TL = p * V2**2 / DL * np.pi / 2 * q_cm
-    return TL
-
-
-
-
-# k_cut = np.inf if mesh.is_semi_infinite else None
-# k2 = np.logspace(np.log10(np.min(k)), np.log10(np.max(k)), num=1000, base=10)
-
-# f_k2 = gaussian_radial_fourier_transform(x=q_cm, a=a)
-# TL = f_k2**2 / DL
-
-TL_exact = np.array([predict_separable(p) for p in p_vals])
-
-fig, ax = plt.subplots(1, 1, figsize=(3.4, 3))
-
-ax.plot(p_vals, K_exact, **FULL_KWARGS)
-ax.plot(p_vals, TL_exact, **PRED_KWARGS)
-```
-
-
-```{python}
-from emulate import SeparableKohnEmulator
-from emulate import mass_nucleon, hbar_c
-
-hbarsq_over_M = hbar_c**2 / mass_nucleon
-# hbarsq_over_M = 1
-
-def minn_pot_k_1S0(kp, k, kappa):
-    exp_m = np.exp(- (k - kp)**2 / (4 * kappa))
-    exp_p = np.exp(- (k + kp)**2 / (4 * kappa))
-    return hbarsq_over_M**(-1) * (2 / np.pi) * np.sqrt(np.pi / kappa) * (exp_m - exp_p) / (4 * k * kp)
-
-kappa_r = 1.487
-kappa_s = 0.465
-kappa_t = 0.639
-pot_1S0 = np.stack([minn_pot_k_1S0(k[:, None], k, kappa_r), minn_pot_k_1S0(k[:, None], k, kappa_s)], axis=-1)
-
-# a_vals = [3, 1]
-a_vals = [3]
-# a_vals = [0.1]
-# a_vals = [1.0]
-# f_r_vals = [np.exp(-a * r**2) for a in a_vals]
-# f_k_vals = np.array([np.sqrt(hbarsq_over_M**-1) * gaussian_radial_fourier_transform(x=k, a=a) for a in a_vals])
-# f_k_vals /= f_k_vals.max(axis=1, keepdims=True)
-
-f_r_vals = np.array([yamaguchi_form_factor_position_space(r=r, beta=a, ell=0) for a in a_vals])
-f_k_vals = np.array([yamaguchi_form_factor_momentum_space(k=k, beta=a, ell=0) for a in a_vals])
-# f_k_vals *= np.sqrt(hbarsq_over_M**-1)
-
-# f_r_vals /= r  # Test out convention differences
-
-n_params = int(len(a_vals)*(len(a_vals)+1)/2)
-# n_params = 2
-p_test = np.array([1, 1, 2])
-# p_test = np.array([1, 2])
-# p_test = np.array([1])
-rng = np.random.default_rng(1)
-p_train = rng.uniform(-10, 2, (4, n_params))
-# kohn.fit(p_train)
-# psi_i, K_i = kohn.predict_wave_function(p_test, return_K=True)
-```
-
-```{python}
-f_k_vals.max(axis=1)
-```
-
-```{python}
-plt.plot(k, f_k_vals.T)
-plt.xlim(0, 10)
-```
-
-```{python}
-plt.plot(k, np.diag(pot_1S0[..., 1]))
-plt.xlim(0, 10)
-```
-
-```{python}
-plt.matshow(pot_1S0[..., 0])
-```
-
-
-
-```{python}
-V1_sep = []
-for i in range(len(a_vals)):
-    for j in range(i, len(a_vals)):
-        if i != j:
-            V1_sep.append(f_k_vals[i][:, None] * f_k_vals[j] + f_k_vals[j][:, None] * f_k_vals[i])
-        else:
-            V1_sep.append(f_k_vals[i][:, None] * f_k_vals[j])
-V1_sep = np.dstack(V1_sep)
-print(V1_sep.shape)
-
-from emulate import NewtonEmulator
-
-
-newton = NewtonEmulator(
-    V0=np.zeros_like(V1_sep[..., 0]),
-    V1=V1_sep,
-    # V0=np.zeros_like(pot_1S0[..., 0]),
-    # V1=pot_1S0,
-    k=k,
-    dk=dk,
-    q_cm=q_cm,
-    boundary_condition=BoundaryCondition.STANDING,
-    nugget=1e-10
-)
-newton.fit(p_train)
-newton.coefficients(p_train[0]) * np.pi / 2
-```
-
-```{python}
-from emulate.utils import yamaguchi_scattering_amplitude
-# p_test = 1000*p_train[0]
-p_test = 1e2 * np.ones_like(p_train[0])
-
-fig, ax = plt.subplots(figsize=(3, 3))
-plt.plot(q_cm, newton.predict(p_test), **PRED_KWARGS)
-plt.plot(q_cm, newton.predict(p_test, full_space=True), **FULL_KWARGS)
-# plt.plot(q_cm, yamaguchi_scattering_amplitude(q_cm, a_vals[0], strength=p_test/hbarsq_over_M))
-plt.plot(q_cm, yamaguchi_scattering_amplitude(q_cm, a_vals[0], strength=p_test))
-```
-
-
-
-```{python}
-from emulate import KohnLippmannSchwingerEmulator
-
-V1_sep_r = []
-for i in range(len(a_vals)):
-    for j in range(i, len(a_vals)):
-        if i != j:
-            V1_sep_r.append(f_r_vals[i][:, None] * f_r_vals[j] + f_r_vals[j][:, None] * f_r_vals[i])
-        else:
-            V1_sep_r.append(f_r_vals[i][:, None] * f_r_vals[j])
-V1_sep_r = np.dstack(V1_sep_r)
-
-ls_kohn = KohnLippmannSchwingerEmulator(
-    V0=np.zeros_like(V1_sep_r[..., 0]),
-    V1=V1_sep_r,
-    r=r,
-    dr=dr,
-    NVP=newton,
-    inv_mass=hbarsq_over_M,
-)
-ls_kohn.fit(p_train)
-```
-
-
-```{python}
-from emulate.utils import yamaguchi_radial_wave_function
-
-kohn = SeparableKohnEmulator(v_r=f_r_vals, r=r, dr=dr, v_k=f_k_vals, k=k, dk=dk, q_cm=q_cm, inv_mass=hbarsq_over_M, ell=0, nugget=1e-7)
-
-# p_test = np.array([1])
-p_test = p_train[0] * 1000
-kohn.fit(p_train)
-# fig, ax = plt.subplots(figsize=(3,3))
-# ax.plot(r, kohn.psi_train[:, 0].T)
-# ax.set_xlim(0, 20)
-# plt.show()
-K_kohn = q_cm * kohn.emulate_reactance(p_test*hbarsq_over_M)
-# K_kohn = q_cm * kohn.predict_wave_function(p_test, return_K=True)[1]
-
-psi_kohn = kohn.predict(p_test*hbarsq_over_M)
-psi_kohn_exact = kohn.predict(p_test, full_space=True)
-psi_kohn_ls = ls_kohn.predict(p_test*hbarsq_over_M, full_space=False)
-# psi_analytic = yamaguchi_radial_wave_function(r=r, q_cm=q_cm[:, None], beta=a_vals[0], strength=p_test/hbarsq_over_M).T
-psi_analytic = yamaguchi_radial_wave_function(r=r, q_cm=q_cm[:, None], beta=a_vals[0], strength=p_test).T
-# psi_analytic = spherical_jn(0, r * q_cm[:, None]).T
-
-K_newt = newton.predict(p_test, full_space=True)
-
-
-
-fig, axes = plt.subplots(1, 2, figsize=(6,3))
-ax = axes[0]
-ax.plot(r, psi_kohn_exact, **FULL_KWARGS)
-ax.plot(r, psi_kohn, **PRED_KWARGS)
-ax.plot(r, psi_kohn_ls, ls="--")
-ax.plot(r, psi_analytic, ls=":", c='r')
-ax.axhline(0, 0, 1, c='lightgrey', lw=0.8, zorder=-1)
-ax.set_xlim(0, 20)
-
-# fig, ax = plt.subplots(figsize=(3,3))
-ax = axes[1]
-ax.plot(q_cm, K_kohn, **PRED_KWARGS)
-# ax.plot(q_cm, K_kohn * K_newt.max() / K_kohn.max())
-ax.plot(q_cm, K_newt, **FULL_KWARGS)
-```
-
-```{python}
-kohn.inv_mass, psi_analytic.shape
-```
-
-```{python}
-d_psi = np.gradient(psi_analytic, r, axis=0)
-d2_psi = np.gradient(d_psi, r, axis=0)
-
-fig, ax = plt.subplots()
-plt.plot(r, psi_analytic[:, 0])
-plt.plot(r, d2_psi[:,0])
-plt.xlim(0, 20)
-ax.axhline(0, 0, 1, c='lightgrey', lw=0.8, zorder=-1)
-```
-
-
-```{python}
-from emulate.utils import schrodinger_residual
-
-n_yama = 21
-mesh_yama = CompoundMesh(np.linspace(0, 10, n_yama), 100 * np.ones(n_yama-1, dtype=int))
-r_yama, dr_yama = mesh_yama.x, mesh_yama.w
-k_yama, dk_yama = mesh_yama.x, mesh_yama.w
-beta_yama = 0.5
-lamb_yama = 5
-# q_cm_yama = np.array([0.1, 1, 2, 3])
-q_cm_yama = np.array([0.1, 1, 2])
-ell_yama = 0
-
-f_r_yama = np.array([yamaguchi_form_factor_position_space(r=r_yama, beta=beta_yama, ell=ell_yama)])
-# f_r_yama /= r_yama
-f_k_yama = np.array([yamaguchi_form_factor_momentum_space(k=k_yama, beta=beta_yama, ell=ell_yama)])
-# f_k_yama /= k_yama
-V_yama = f_r_yama[0, :, None] * f_r_yama[0] * lamb_yama
-
-
-# kohn_yama = KohnLippmannSchwingerEmulator(
-#     V0=np.zeros_like(f_r_yama),
-#     V1=f_r_yama[..., None],
-#     r=r_yama,
-#     dr=dr_yama,
-#     NVP=newton,
-#     inv_mass=hbarsq_over_M,
-# )
-kohn_yama = SeparableKohnEmulator(
-    v_r=f_r_yama, r=r_yama, dr=dr_yama, v_k=f_k_yama, k=k_yama, dk=dk_yama,
-    q_cm=q_cm_yama, inv_mass=1, ell=0, nugget=1e-7
-)
-psi_yama = kohn_yama.predict(np.array([1]), full_space=True).T
-# psi_yama = spherical_jn(0, q_cm_yama[:, None] * r_yama)
-psi_yama_analytic = yamaguchi_radial_wave_function(r=r_yama, q_cm=q_cm_yama[:, None], beta=beta_yama, strength=lamb_yama)
-# psi_yama_analytic = spherical_jn(0, q_cm_yama[:, None] * r_yama)
-
-
-# V_yama *= hbarsq_over_M**-1
-residual = schrodinger_residual(psi=psi_yama, V=V_yama, r=r_yama, dr=dr_yama, q_cm=q_cm_yama[:, None], ell=ell_yama)
-residual_analytic = schrodinger_residual(psi=psi_yama_analytic, V=V_yama, r=r_yama, dr=dr_yama, q_cm=q_cm_yama[:, None], ell=ell_yama)
-
-fig, axes = plt.subplots(1, 2, figsize=(5, 3))
-ax = axes[0]
-ax.plot(r_yama, psi_yama.T, **PRED_KWARGS)
-ax.plot(r_yama, psi_yama_analytic.T, **FULL_KWARGS)
-
-ax = axes[1]
-ax.plot(r_yama, residual.T, **PRED_KWARGS)
-ax.plot(r_yama, residual_analytic.T, **FULL_KWARGS)
-# plt.xlim(0, 20)
-ax.axhline(0, 0, 1, c='lightgrey', lw=0.8, zorder=-1)
-ax.set_ylim(-10, 10);
-```
-
-
-```{python}
-from emulate.utils import schrodinger_residual
-from scipy.special import spherical_jn
-
-hbarsq_over_M = 1
-# kappa_r = 1.487
-# kappa_s = 0.465
-# kappa_t = 0.639
-
-kappa_r = 0.04
-kappa_s = 0.1
-kappa_t = 0.639
-
-mesh = CompoundMesh([0, 1, 5, 10, 20, 50, 100, 1000], [100, 100, 100, 100, 100, 100, 100, 100])
-k, dk = mesh.x, mesh.w
-r, dr = mesh.x, mesh.w
-q_cm = np.array([0.1, 1, 2])
-
-def minn_pot(r, kappa):
-    return np.exp(-kappa * r**2)
-
-def minn_pot_k_1S0(kp, k, kappa):
-    exp_m = np.exp(- (k - kp)**2 / (4 * kappa))
-    exp_p = np.exp(- (k + kp)**2 / (4 * kappa))
-    return hbarsq_over_M**(-1) * (2 / np.pi) * np.sqrt(np.pi / kappa) * (exp_m - exp_p) / (4 * k * kp)
-
-
-pot_1S0 = np.stack([minn_pot_k_1S0(k[:, None], k, kappa_r), minn_pot_k_1S0(k[:, None], k, kappa_s)], axis=-1)
-pot_1S0_r = np.stack([np.diag(minn_pot(r, kappa_r)), np.diag(minn_pot(r, kappa_s))], axis=-1)
-
-newton_1S0 = NewtonEmulator(
-    V0=np.zeros_like(pot_1S0[..., 0]),
-    V1=pot_1S0,
-    k=k,
-    dk=dk,
-    q_cm=q_cm,
-    boundary_condition=BoundaryCondition.STANDING,
-    nugget=1e-10
-)
-
-
-ls_kohn_1S0 = KohnLippmannSchwingerEmulator(
-    V0=np.zeros_like(pot_1S0_r[..., 0]),
-    V1=pot_1S0_r,
-    r=r,
-    dr=dr,
-    NVP=newton_1S0,
-    inv_mass=hbarsq_over_M,
-)
-
-psi_kohn_ls_1S0 = ls_kohn_1S0.predict(np.array([1, 1]), full_space=True)
-psi_0 = spherical_jn(0, q_cm[:, None] * r).T
-
-fig, axes = plt.subplots(1, 2, figsize=(5, 3))
-ax = axes[0]
-ax.plot(r, psi_kohn_ls_1S0)
-ax.plot(r, psi_0, ls='--')
-ax.set_xlim(0, 50)
-
-residual_0 = schrodinger_residual(psi=psi_0.T, V=pot_1S0_r[..., 0], r=r, dr=dr, q_cm=q_cm[:, None], ell=0)
-residual = schrodinger_residual(psi=psi_kohn_ls_1S0.T, V=pot_1S0_r[..., 0], r=r, dr=dr, q_cm=q_cm[:, None], ell=0)
-
-mask_res = slice(50, -100)
-mask_res = (r > 0.1) & (r < 19.5)
-# residual = residual[..., mask_res]
-ax = axes[1]
-ax.plot(r[mask_res], residual[..., mask_res].T)
-ax.plot(r[mask_res], residual_0[..., mask_res].T, ls="--")
-ax.set_xlim(0, 20)
-```
-
-```{python}
-residual.shape
-```
-
-
-```{python}
-pot_1S0_r.shape, pot_1S0.shape, np.zeros_like(pot_1S0_r[..., 0]).shape
-```
-
-
-```{python}
-from emulate.utils import schrodinger_residual
-from scipy.special import spherical_jn
-
-n_free = 21
-mesh_free = CompoundMesh(np.linspace(0, 10, n_free), 100 * np.ones(n_free-1, dtype=int))
-q_cm_free = np.array([0.1, 1, 2])
-j_ell = spherical_jn(0, mesh_free.x * q_cm_free[:, None])
-residual = schrodinger_residual(psi=j_ell, V=np.zeros((len(mesh_free.x), len(mesh_free.x))), r=mesh_free.x, dr=mesh_free.w, q_cm=q_cm_free[:, None], ell=0)
-plt.plot(mesh_free.x[2:-2], residual.T[2:-2])
-# plt.xlim(0, 10)
-# plt.ylim(-10, 10)
-```
-
-
-```{python}
-K_half_kohn = kohn.compute_half_on_shell_reactance(p_test, include_q=False)
-K_half_newt = newton.reactance(
-    p=p_test, include_q=False, shell="half", return_gradient=False
-)
-plt.plot(k, K_half_kohn.T)
-plt.plot(k, K_half_newt.T, ls='--')
-plt.xlim(0, 10)
-```
-
-
-```{python}
-Lam = kohn.compute_strength_matrix(p_test)
-print(Lam.shape, kohn.v_k.shape)
-V1_kohn_test = kohn.v_k.T @ Lam @ kohn.v_k
-V1_newt_test = newton.V1 @ p_test
-np.allclose(V1_kohn_test, V1_newt_test, rtol=1, atol=1e-10)
-```
-
-```{python}
-newton.V1 @ p_test
-```
-
-```{python}
-V1_kohn_test
-```
-
-```{python}
-plt.matshow(V1_kohn_test - V1_newt_test)
-```
-
-
-
-```{python}
-kohn.coefficients(p_train[0]), kohn.coefficients(p_train[0]).sum(-1), newton.coefficients(p_train[0])
-```
-
-
-
-```{python}
-n_intervals = 21
-mesh = CompoundMesh(
-    np.linspace(0, 10, n_intervals), 100 * np.ones(n_intervals - 1, dtype=int)
-)
-r, dr = mesh.x, mesh.w
-# n_r = len(r)
-q_cm = np.array([0.1, 1, 2])
-beta = 0.5
-strength = 5
-
-psi_ell = yamaguchi_radial_wave_function(
-    r=r, q_cm=q_cm[:, None], beta=beta, strength=strength
-)
-f_r = yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell)
-V_r = f_r[:, None] * f_r * strength
-
-# When it is inserted in the Schrodinger equation with no external potential
-residual = schrodinger_residual(
-    psi=psi_ell, V=V_r, r=r, dr=dr, q_cm=q_cm[:, None], ell=ell
-)
-# And endpoint effects are removed (due to numerical gradients)
-residual = residual[..., 2:-2]
-
-# Then the residual should be almost zero
-# np.testing.assert_allclose(
-#     actual=residual, desired=np.zeros_like(residual), atol=1e-4, rtol=1
-# )
-
-# residual.shape
-plt.plot(r[2:-2], residual.T)
-plt.ylim(-10, 10)
-```
-
-
-
-```{python}
-%load_ext autoreload
-%autoreload 2
-%matplotlib inline
-
-import numpy as np
-from scipy import stats
-from scipy.special import spherical_jn
-
-from emulate import CompoundMesh
-from emulate import fourier_transform_partial_wave
-from emulate import gaussian_radial_fourier_transform
-from emulate.utils import (
-    yamaguchi_form_factor_momentum_space,
-    yamaguchi_form_factor_position_space,
-    yamaguchi_radial_wave_function,
-    yamaguchi_scattering_amplitude,
-    schrodinger_residual,
-)
-from emulate import NewtonEmulator, BoundaryCondition, KohnLippmannSchwingerEmulator, SeparableKohnEmulator
-
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import seaborn as sns
-from emulate import CompoundMesh, QuadratureType
-from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
-from emulate import setup_rc_params
-
-
-setup_rc_params()
-sns.set_palette('pastel')
-
-
-# Rule: The analytic Yamaguchi scattering amplitude should match the empirical version from the LS equation
-
-# Given a quadrature mesh
-n_intervals = 21
+n_intervals = 5
 nodes = np.linspace(0, 10, n_intervals)
-n_points = 100 * np.ones(n_intervals - 1, dtype=int)
+n_points = 20 * np.ones(n_intervals, dtype=int)
 mesh = CompoundMesh(nodes, n_points)
+
+# Use the same mesh for k and r
 k, dk = mesh.x, mesh.w
 r, dr = mesh.x, mesh.w
-
-# And other parameters
-beta = 2.0
-ell = 0
-q_cm = np.array([0.1, 1, 2])
-strength = np.array([5])
-hbarsq_over_M = 1
-
-# And a Yamaguchi potential
-f_k = yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell)
-f_r = yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell)
-V1_k = (f_k[:, None] * f_k)[..., None]
-V1_r = (f_r[:, None] * f_r)[..., None]
-
-# When the Lippmann Schwidnger equation is evaluated to solve for the reactance matrix, K
-newton = NewtonEmulator(
-    V0=np.zeros_like(V1_k[..., 0]),
-    V1=V1_k,
-    k=k,
-    dk=dk,
-    q_cm=q_cm,
-    boundary_condition=BoundaryCondition.STANDING,
-    nugget=1e-10,
-)
-
-# schwing = KohnLippmannSchwingerEmulator(
-#     V0=np.zeros_like(V1_r[..., 0]),
-#     V1=V1_r,
-#     r=r,
-#     dr=dr,
-#     NVP=newton,
-#     inv_mass=hbarsq_over_M,
-#     ell=ell,
-# )
-schwing = SeparableKohnEmulator(v_r=[f_r], r=r, dr=dr, v_k=[f_k], k=k, dk=dk, q_cm=q_cm, inv_mass=hbarsq_over_M, ell=ell, nugget=1e-7)
-
-# And the K matrix from the LS equation is converted to a wave function in position space
-params = strength * np.array([1])
-psi_schwing = schwing.predict(params, full_space=True).T
-
-# And the analytic Yamaguchi wave function is evaluated
-psi_analytic = yamaguchi_radial_wave_function(
-    r=r, q_cm=q_cm[:, None], beta=beta, strength=strength
-)
-
-fig, ax = plt.subplots(figsize=(3, 3))
-ax.plot(r, psi_schwing.T, **PRED_KWARGS)
-ax.plot(r, psi_analytic.T, **FULL_KWARGS)
 ```
 
 
 
 ```{python}
-# Rule: The analytic Yamaguchi scattering amplitude should match the empirical version from the LS equation
 
-# Given a quadrature mesh
-n_intervals = 21
-nodes = np.linspace(0, 10, n_intervals)
-n_points = 100 * np.ones(n_intervals - 1, dtype=int)
-mesh = CompoundMesh(nodes, n_points)
-k, dk = mesh.x, mesh.w
-r, dr = mesh.x, mesh.w
-
-# And other parameters
-beta = 2.0
-ell = 0
+betas = [2, 3]
 q_cm = np.array([0.1, 1, 2])
-strength = np.array([5])
-hbarsq_over_M = 1
-
-# And a Yamaguchi potential
-f_k = yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell)
-f_r = yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell)
-V1_k = (f_k[:, None] * f_k)[..., None] * strength
-V1_r = (f_r[:, None] * f_r)[..., None] * strength
-
-# When the Lippmann Schwidnger equation is evaluated to solve for the reactance matrix, K
-newton = NewtonEmulator(
-    V0=np.zeros_like(V1_k[..., 0]),
-    V1=V1_k,
-    k=k,
-    dk=dk,
-    q_cm=q_cm,
-    boundary_condition=BoundaryCondition.STANDING,
-    nugget=1e-10,
+f_k = np.array(
+    [
+        yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
+        for beta in betas
+    ]
+)
+f_r = np.array(
+    [
+        yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
+        for beta in betas
+    ]
 )
 
-schwing = SeparableKohnEmulator(
-    v_r=[f_r],
+
+kohn = SeparableKohnEmulator(
+    v_r=f_r,
     r=r,
     dr=dr,
-    v_k=[f_k],
+    v_k=f_k,
     k=k,
     dk=dk,
     q_cm=q_cm,
-    inv_mass=hbarsq_over_M,
     ell=ell,
-    nugget=1e-7,
+    nugget=nugget,
+    use_lagrange_multiplier=True,
 )
 
-p = np.array([1])
-K_half_schwinger = newton.reactance(
-    p=p, include_q=False, shell="half", return_gradient=False
-)
-K_half_separable = schwing.compute_half_on_shell_reactance(strength * p, include_q=False)
+rng = np.random.default_rng(1)
+params_dimension = len(betas) * (len(betas) + 1) // 2
+# p_train = rng.uniform(-50, 50, (n_train, params_dimension))
+# p_valid = rng.uniform(-50, 50, params_dimension)
 
-fig, ax = plt.subplots(figsize=(3, 3))
-ax.plot(r, K_half_schwinger.T / K_half_separable.T, **PRED_KWARGS)
-# ax.plot(r, K_half_separable.T, **FULL_KWARGS)
+p_train = rng.uniform(-5, 5, (n_train, params_dimension))
+p_valid = rng.uniform(-5, 5, params_dimension)
 
-ax.set_ylim(0, 5)
+kohn.fit(p_train)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(3.4, 3))
+
+u_train = kohn.psi_train * r
+
+u_exact = kohn.predict_wave_function(p_valid) * r
+u_valid = kohn.emulate_wave_function(p_valid) * r
+
+r_mask = r <= 10
+
+ax.plot(r[r_mask], u_exact[0, r_mask], **FULL_KWARGS, label="Exact")
+ax.plot(r[r_mask], u_valid[0, r_mask], **PRED_KWARGS, label="Emulator", c='w')
+for i, q_i in enumerate(q_cm):
+    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", zorder=0)
+    ax.plot(r[r_mask], u_train[i][:, r_mask].T, c=f"C{i}", zorder=0)
+
+    ax.plot(r[r_mask], u_exact[i, r_mask], **FULL_KWARGS)
+    ax.plot(r[r_mask], u_valid[i, r_mask], **PRED_KWARGS)
+
+
+ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
+ax.legend()
+ax.set_xlabel("$r$")
+ax.set_ylabel("$u(r)$")
+ax.set_title("Radial wave functions for the Yamaguchi potential")
+# ax.set_xlim(0, 10)
+```
+
+```{python}
+u_valid.shape
 ```
