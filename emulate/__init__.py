@@ -4,6 +4,8 @@ from .graphs import setup_rc_params
 from .types import BoundaryCondition
 from .types import QuadratureType
 
+from .kinematics import t_cm_to_q_cm
+
 from .utils import markdown_class_method
 from .utils import jupyter_show_class_method
 from .utils import convert_from_r_to_ho_basis

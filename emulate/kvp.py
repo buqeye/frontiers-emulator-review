@@ -18,19 +18,12 @@ class BaseKohnEmulator:
     V1 : ArrayLike, shape = (n_k, n_k, n_p)
         The piece of the potential that is linear in the parameters p. When multiplied by p, then this
         is expected to be in units of fermi.
-    k :
-        The momentum mesh, likely created using some quadrature rules, in units of inverse fermi.
-    dk :
-        The integration measure, likely created using some quadrature rules, in units of inverse fermi.
-    t_lab :
-        The on-shell energies of interest for computing observables, in units of MeV.
-    system :
-        The system of particles involved in the collision: 'pp', 'np', 'nn', 'p-alpha',
-        or an instance of the Isospin class.
-    dwa_wfs :
-        The wave functions used for the distorted wave approach.
-        Must include 'f', 'g', 'df', 'dg', 'f0', 'g0', 'df0', and 'dg0'. The g's may have an additional negative
-        sign compared to some conventions.
+    r :
+        The radial coordinate mesh, likely created using some quadrature rules.
+    dr :
+        The integration measure, likely created using some quadrature rules.
+    q_cm :
+        The center-of-mass momentum, in units of inverse length (compatible with r).
     """
 
     def __init__(
@@ -40,18 +33,20 @@ class BaseKohnEmulator:
         r,
         dr,
         q_cm,
-        inv_mass,
+        # inv_mass,
         nugget=0,
+        use_lagrange_multiplier=False,
     ):
         self.r = r
         self.dr = dr
         self.V0 = V0
         self.V1 = V1
         self.q_cm = q_cm
-        self.inv_mass = inv_mass
+        # self.inv_mass = inv_mass
         self.nugget = nugget
         self.n_p = V1.shape[-1]
         self.n_q = len(q_cm)
+        self.use_lagrange_multiplier = use_lagrange_multiplier
 
         self.dU0 = None
         self.dU1 = None
@@ -66,7 +61,7 @@ class BaseKohnEmulator:
             psi_i, K_i = self.predict_wave_function(p, return_K=True)
             psi_train.append(psi_i)
             K_train.append(K_i)
-        psi_train = np.array(psi_train).transpose(2, 0, 1)
+        psi_train = np.array(psi_train).transpose(1, 0, 2)
         K_train = np.array(K_train)
 
         n_train = len(p_train)
@@ -115,9 +110,9 @@ class BaseKohnEmulator:
 
         self.V0_sub = V0_sub
         self.V1_sub = V1_sub
-        inv_mass = self.inv_mass
-        dU0 *= 1 / inv_mass
-        dU1 *= 1 / inv_mass
+        # inv_mass = self.inv_mass
+        # dU0 *= 1 / inv_mass
+        # dU1 *= 1 / inv_mass
         self.dU0 = dU0
         self.dU1 = dU1
         self.p_train = p_train
@@ -203,12 +198,13 @@ class BaseKohnEmulator:
         return mat
 
     def coefficients(self, p):
-        return self.coefficients_and_multiplier(p)[:, :-1]
-        # return self.coefficients_without_multiplier(p)
+        if self.use_lagrange_multiplier:
+            return self.coefficients_and_multiplier(p)[:, :-1]
+        return self.coefficients_without_multiplier(p)
 
     def emulate_wave_function(self, p, return_K=False):
         c = self.coefficients(p)
-        psi = np.einsum("ijk,ij->ki", self.psi_train, c)
+        psi = np.einsum("kjr,kj->kr", self.psi_train, c)
         if return_K:
             K = self.emulate_reactance(p, coefficients=c)
             return psi, K
@@ -242,14 +238,22 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
         r,
         dr,
         NVP,
-        inv_mass,
+        # inv_mass,
         ell,
+        use_lagrange_multiplier=False,
     ):
         self.NVP = NVP
         nugget = NVP.nugget
         self.ell = ell
         super().__init__(
-            V0=V0, V1=V1, r=r, dr=dr, q_cm=NVP.q_cm, nugget=nugget, inv_mass=inv_mass
+            V0=V0,
+            V1=V1,
+            r=r,
+            dr=dr,
+            q_cm=NVP.q_cm,
+            nugget=nugget,
+            # inv_mass=inv_mass,
+            use_lagrange_multiplier=use_lagrange_multiplier,
         )
 
     def predict_wave_function(self, p, return_K=False):
@@ -275,9 +279,9 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
 
         G0_K = (2 / np.pi) * G0 * K_half
         # G0_K = G0 * K_half
-        j_k = spherical_jn(n=self.ell, z=r[:, None] * k)
-        j_q = spherical_jn(n=self.ell, z=r[:, None] * q_cm)
-        j_G0_K = np.einsum("rk,qk->rq", j_k, G0_K)
+        j_k = spherical_jn(n=self.ell, z=r * k[:, None])
+        j_q = spherical_jn(n=self.ell, z=r * q_cm[:, None])
+        j_G0_K = np.einsum("kr,qk->qr", j_k, G0_K)
         psi = j_q + j_G0_K
 
         if return_K:
@@ -296,9 +300,10 @@ class SeparableKohnEmulator(BaseKohnEmulator):
         k,
         dk,
         q_cm,
-        inv_mass,
+        # inv_mass,
         ell,
         nugget=0,
+        use_lagrange_multiplier=False,
         is_mesh_semi_infinite=True,
     ):
         n_form_factors = len(v_r)
@@ -332,7 +337,14 @@ class SeparableKohnEmulator(BaseKohnEmulator):
             k_cut=k_cut,
         )
         super().__init__(
-            V0=V0, V1=V1, r=r, dr=dr, q_cm=q_cm, inv_mass=inv_mass, nugget=nugget
+            V0=V0,
+            V1=V1,
+            r=r,
+            dr=dr,
+            q_cm=q_cm,
+            # inv_mass=inv_mass,
+            nugget=nugget,
+            use_lagrange_multiplier=use_lagrange_multiplier,
         )
 
         self.vGv = self.compute_vGv_matrix()
@@ -385,9 +397,9 @@ class SeparableKohnEmulator(BaseKohnEmulator):
         r = self.r
         G0_K = (2 / np.pi) * self.G0 * K_half
         # G0_K = self.G0 * K_half
-        j_k = spherical_jn(n=self.ell, z=r[:, None] * self.k)
-        j_q = spherical_jn(n=self.ell, z=r[:, None] * self.q_cm)
-        j_G0_K = np.einsum("rk,qk->rq", j_k, G0_K)
+        j_k = spherical_jn(n=self.ell, z=r * self.k[:, None])
+        j_q = spherical_jn(n=self.ell, z=r * self.q_cm[:, None])
+        j_G0_K = np.einsum("kr,qk->qr", j_k, G0_K)
         psi = j_q + j_G0_K
 
         if return_K:

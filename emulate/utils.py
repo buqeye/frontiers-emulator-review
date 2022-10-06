@@ -123,7 +123,7 @@ def gaussian_radial_fourier_transform(x, a):
     return np.sqrt(2 / pi) * np.exp(-(x**2) / (4.0 * a)) * np.sqrt(pi / a) / (4 * a)
 
 
-def yamaguchi_form_factor_momentum_space(k, beta, ell=0):
+def yamaguchi_form_factor_momentum_space(k, beta, ell=0, hbar2_over_2mu=1):
     """
 
     Comes from Eq (27) in Ref [1].
@@ -133,10 +133,10 @@ def yamaguchi_form_factor_momentum_space(k, beta, ell=0):
     [1] Momentum-Space Probability Density of 6He in Halo Effective Field Theory
         https://doi.org/10.1007/s00601-019-1528-6
     """
-    return k**ell / (beta**2 + k**2) ** (ell + 1)
+    return hbar2_over_2mu ** (-0.5) * k**ell / (beta**2 + k**2) ** (ell + 1)
 
 
-def yamaguchi_form_factor_position_space(r, beta, ell=0):
+def yamaguchi_form_factor_position_space(r, beta, ell=0, hbar2_over_2mu=1):
     """
 
     The fourier transform of Eq (27) in Ref [1].
@@ -149,20 +149,56 @@ def yamaguchi_form_factor_position_space(r, beta, ell=0):
     from scipy.special import gamma
 
     return (
-        np.sqrt(pi / 2)
+        hbar2_over_2mu ** (-0.5)
+        * np.sqrt(pi / 2)
         * np.exp(-beta * r)
         * r ** (ell - 1)
         / (gamma(ell + 1) * 2**ell)
     )
 
 
-def schrodinger_residual(psi, V, r, dr, q_cm, ell):
+def minnesota_potential_coordinate(r, kappa):
+    return np.exp(-kappa * r**2)
+
+
+def minnesota_potential_momentum_1S0(kp, k, kappa):
+    exp_m = np.exp(-((k - kp) ** 2) / (4 * kappa))
+    exp_p = np.exp(-((k + kp) ** 2) / (4 * kappa))
+    return (2 / np.pi) * np.sqrt(np.pi / kappa) * (exp_m - exp_p) / (4 * k * kp)
+
+
+def schrodinger_residual(psi, V, r, dr, q_cm, ell, is_local):
+    """Computes the residual 2 mu * (H psi - E psi), which should be zero if psi satisfies the Schrodinger equation.
+
+    This function assumes that the Schrodinger equation is evaluated in coordinate space.
+
+    Parameters
+    ----------
+    psi : array, shape = (..., r)
+        The wave function
+    V : array, shape = (..., r) if local, else (..., r, r)
+        The potential multiplied by (2 mu) / hbar**2. If it is local, it should only have one dimension for the radial component.
+        If it is non-local, it should have two.
+    r : shape = (r,)
+        The radial coordinate
+    dr : shape = (r,)
+        The integration measure for r, which can be quadrature weights
+    q_cm : shape = (...)
+        The center-of-mass momentum
+    ell : int
+        The partial wave
+    is_local: bool
+        Whether the potential V is local.
+    """
     u = r * q_cm * psi
     d_u = np.gradient(u, r, axis=-1)
     d2_u = np.gradient(d_u, r, axis=-1)
     angular = ell * (ell + 1) / r**2
-    #return -d2_u + angular * u + ((r * dr * u) @ V) - q_cm**2 * u 
-    return -d2_u + angular * u + ((dr * u) @ V) - q_cm**2 * u 
+    if is_local:
+        Vu = V * u
+    else:
+        Vu = (dr * u) @ (V * r[:, None] * r)
+    return -d2_u + angular * u + Vu - q_cm**2 * u
 
 
 def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
