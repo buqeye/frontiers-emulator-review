@@ -16,77 +16,85 @@ jupyter: python3
 
 ## Kohn Emulators {#sec-kohn} 
 
-We would like to solve the (coupled) Schrodinger equation for scattering systems ($E>0$) across a range of parameters $\param$:
+We would like to solve the (coupled) Schrodinger equation for scattering systems (at center-of-mass $E > 0$) across a range of parameters $\param$:
 $$
 \begin{aligned} %\label{eq:schrodinger_coupled}
-    H^{s's}(\param) \ket{\psi^{s\ell}} = E \ket{\psi^{s'\ell}}.
+    \widehat H^{s t}(\param) \ket{\psi^{t s'}} \equiv \big[ \widehat T + \widehat V (\param) \big]^{s t} \ket{\psi^{t s'}} = E  \ket{\psi^{s s'}},
 \end{aligned}
 $$ {#eq-schrodinger_coupled}
-Here, $s$ is an angular momentum variable whose sum is implied, and $s'$ indexes the set of coupled equations to be simultaneously solved for a given $\ell$.
-In the uncoupled case, this reduces to a single equation with $s' = \ell$.
-Notably, even in the coupled case, each set of coupled equations can be solved independently for each choice of $\ell$ and $E$, which will have implications for how our emulator is constructed.
-We assume that $E$ is fixed throughout; the process can be repeated separately across a set of energies to create a suite of emulators, if desired.
+Here, $s$ and $s'$ are the indicies for the entrance (incoming) and exit (outgoing) channels of the scattering process and $t$ and $t'$ are summed over.
+In the uncoupled case, this reduces to a single equation with $s = s' = t$.
 
-Projection-based emulation begins by first writing @eq-schrodinger_coupled in integral form.
-Here we choose the Kohn variational principle (KVP), which states that
+We begin building our MOR emulator by first writing @eq-schrodinger_coupled in integral form.
+Here we choose the general Kohn variational principle (KVP), which states that
 $$
-\begin{aligned} %\label{eq:kvp_coupled}
-    \mathcal{K}^{\ell'\ell}[\psi] = K^{\ell'\ell} - 2\mu \braket{\psi^{\ell's'} | [H - E]^{s's} | \psi^{s\ell}}
-\end{aligned}
+\begin{multline} %\label{eq:kvp_coupled}
+    \mathcal{L}^{s s'}[\psitrial] = \frac{L^{s s'}(E)}{\mathcal{N}} - \frac{\mathcal{N}}{k_0} \frac{2 \mu}{\mathrm{det} \, \umatrix} \braket{\psitrial \, {}^{s t} | [\widehat H(\param) - E]^{t t'} | \psitrial \, {}^{t' s'}} ,
+\end{multline}
 $$ {#eq-kvp_coupled}
-where $K$ is the on-shell reactance matrix.
-The functional yields $\mathcal{K}[\psi] = K$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K^2)$.
+where $\psitrial$ is a trial scattering wave function, $L^{s s'}$ is a generic scattering matrix rescaled by a normalization constant $\mathcal{N} \neq 0$ that depends on the boundary condition being used, $k_0 = \sqrt{2\mu E}$ is the on-shell energy with $\mu$ being the reduced mass, and $\umatrix$ are non-singular matrices used to parameterize the asymptotic boundary conditions.
+If one is building a $K$ matrix emulator, then $\mathcal{N} = k_0$.
+The functional yields $\genkvp[\psi] = L$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\genkvp[\psitrial + \delta\psitrial] = L + \mathcal{O}(\delta L^2 / \mathcal{N}^2)$.
+Note that for the NN scattering coupled channels considered here, this will result in 3 distinct variational principles being enforced due to the unitarity of the $S$ matrix: one for each of $s = s' = j\pm1$ and one for the off-diagonal component.
 Rather than finding a wave function $\ket{\psi}$ that satisfies @eq-schrodinger_coupled, our task now has now changed to finding a wave function that makes @eq-kvp_coupled stationary.
 
 The key to creating an efficient emulator from @eq-kvp_coupled follows from a trial wave function ansatz
 $$
 \begin{align} %\label{eq:trial_ansatz}
-    \ket{\widetilde\psi^{s\ell}} \equiv \sum_{i=1}^{N_b} \beta_i^{\ell'\ell} \ket{\psi_i^{s\ell}}
+    \ket{\widetilde\psi^{t t'}} \equiv \sum_{i=1}^{N_b} \weights_i \ket{\psi_i^{t t'}}
 \end{align}
 $$ {#eq-trial_ansatz}
-where $\{\ket{\psi_i^{s\ell}}\}_s$ is the exact solution to @eq-schrodinger_coupled for a choice of $\param_i$, and where we have labeled the basis coefficient with the indices $\ell',\ell$ which reflect the component of the KVP to be emulated as in @eq-kvp_coupled.
-The reason that each angular component of $\mathcal{K}^{\ell'\ell}$ can be emulated separately---with its own trial wave function---follows, in part, from the fact that @eq-schrodinger_coupled can be solved independently for each choice of $\ell$ (see App.~\ref{sec:formalism_details} for more details).
-Note that for the NN scattering coupled channels considered here, this will result in 3 distinct variational principles being enforced: one for each of $\ell' = \ell = j\pm1$ and one for the off-diagonal component.
+where $\{\ket{\psi_i^{t t'}}\}_{i=1}^{\nbasis}$ is the high-fidelity solution to @eq-schrodinger_coupled for a choice of $\param_i$, and where we have labeled the wave funtions with the indices $t,t'$ which reflect the component of the KVP to be emulated as in @eq-kvp_coupled.
 
 Inserting @eq-trial_ansatz into @eq-kvp_coupled yields
 $$
-\mathcal{K}^{\ell'\ell} = \beta_i^{\ell'\ell}K_i^{\ell'\ell} - \frac{1}{2} \beta_i^{\ell'\ell} \Delta \widetilde U_{ij}^{\ell'\ell}\beta_j^{\ell'\ell} %\label{eq:kvp_coupled_reduced}
+\genkvp^{s s'} = \weights_i L_i^{s s'} / \mathcal{N} - \frac{1}{2} \weights_i \dU_{ij}^{s s'} \weights_j %\label{eq:kvp_coupled_reduced}
 $$ {#eq-kvp_coupled_reduced}
 where we have defined
 $$
 \begin{aligned}
-    \Delta \widetilde U_{ij}^{\ell'\ell} & \equiv 2\mu \braket{\psi_i^{\ell's'} | [H - E]^{s's} | \psi_j^{s\ell}} \notag\\
-    & ~+ 2\mu \braket{\psi_j^{\ell' s'} | [H - E]^{s's} | \psi_i^{s\ell}} \notag\\
-    & = 2\mu \braket{\psi_i^{\ell's'} | [V(\theta) - V_j]^{s's} | \psi_j^{s\ell}} \notag\\
-    & ~+ 2\mu \braket{\psi_j^{\ell's'} | [V(\theta) - V_i]^{s's} | \psi_i^{s\ell}},
-    %\label{eq:delta_u_tilde}
+    \dU_{ij}(\param) 
+    & \equiv 
+    \frac{\mathcal{N}}{k_0} \frac{2 \mu}{\mathrm{det} \, \umatrix} 
+    \big[
+    \braket{\psi_i^{s t} | [\widehat H(\param) - E]^{t t'} | \psi_j^{t' s'}} \notag \\
+    & \qquad \qquad \quad + 
+    \braket{\psi_j^{s t} | [\widehat H(\param) - E]^{t t'} | \psi_i^{t' s'}}
+    \big] \notag \\
+    & = \frac{\mathcal{N}}{k_0} \frac{2 \mu}{\mathrm{det} \, \umatrix}
+    \big[ 
+    \braket{\psi_i^{s t} | [V(\param) - V_j]^{t t'} | \psi_j^{t' s'}} \notag \\
+    & \qquad \qquad \quad +
+    \braket{\psi_j^{s t} | [V(\param) - V_i]^{t t'} | \psi_i^{t' s'}}
+    \big]
 \end{aligned}
 $$ {#eq-delta_u_tilde}
 In the final line we have added and subtracted $V_i \equiv V(\param_i)$ and $V_j \equiv V(\param_j)$ to use @eq-schrodinger_coupled.
-Emulating $\psi$ (via @eq-trial_ansatz), and hence $K$ (via @eq-kvp_coupled_reduced), has now reduced to determining the values of $\beta$ that make @eq-kvp_coupled_reduced stationary under the constraint that $\sum_i \beta_i = 1$ such that the wave functions remain normalized.
+A consequence of this formulation is that only short-range physics would be involved since the long-ranged potentials, such as Coulomb, would drop out of @eq-delta_u_tilde if the fine structure constant is fixed.
+Emulating $\psi$ (via @eq-trial_ansatz), and hence $L/\mathcal{N}$ (via @eq-kvp_coupled_reduced), has now reduced to determining the values of $\weights$ that make @eq-kvp_coupled_reduced stationary under the constraint that $\sum_i \weights_i = 1$ such that the wave functions remain normalized.
 Such a solution can be found using a Lagrange multiplier $\lambda$, and is given by
 $$
 \begin{aligned} %\label{eq:coeff_solution}
     \begin{pmatrix}
-    \Delta \widetilde U^{\ell'\ell} & \vec{1} \\ 
-          \vec{1} \, {}^\intercal & 0
+        \dU & \vec{1}\,{} \\ 
+        \vec{1} \, {}^\intercal & 0\,{}
     \end{pmatrix}
     \begin{pmatrix}
-          \vec{\beta} \, {}^{\ell'\ell} \\ 
-          \lambda \, {}^{\ell'\ell}
+        \kvpweights \, {} \\ 
+        \lagmult \, {}
     \end{pmatrix}
     =
     \begin{pmatrix}
-          \vec{K} \, {}^{\ell'\ell} \\ 
-          1
+        (\vec{L} / \mathcal{N}) \, {} \\ 
+        1
     \end{pmatrix}.
 \end{aligned}
 $$ {#eq-coeff_solution}
-The fact that @eq-coeff_solution is a simple linear system means that if the $N_b$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+The fact that @eq-coeff_solution is a linear system means that if the $\nbasis$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
 
-Thus far we have not specified whether the solution is to be obtained in coordinate space or momentum space.
-The only difference between these approaches is the way we obtain the basis functions $\psi_i$ used to construct the trial ansatz in @eq-trial_ansatz, and thus the manner in which $\Delta \widetilde U$ is evaluated.
-If one had already obtained $\{\psi_i\}$ in coordinate space, then $\Delta \widetilde U$ could be straightforwardly evaluated, particularly for short ranged potentials $V(\param)$ where the asymptotic behavior of $\psi$ is irrelevant. (Note that long-ranged potentials, such as Coulomb, would drop out of @eq-delta_u_tilde if its parameters are fixed.)
+Everything we have done thus far is representation-independent.
+The only difference between emulating in coordinate- and momentum-space is how we calculate the basis functions $\psi_i$ used to construct @eq-trial_ansatz, and thus the manner in which $\Delta \widetilde U$ is evaluated in @eq-delta_u_tilde.
+If one had already obtained $\{\psi_i\}$ in coordinate space, then $\Delta \widetilde U$ could be straightforwardly evaluated.
 
 In momentum space, we instead initially solve for the $K$ matrix and must relate $K$ to $\psi$ before using @eq-delta_u_tilde.
 There are a couple relations one could use to accomplish this goal: the definition of the scattering wave function using the $K$ matrix
@@ -104,7 +112,7 @@ $$
 The first relation yields
 $$
 \begin{aligned}
-    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | \Delta V_{j}(\param) | \phi_{\ell}}
+    \dU_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | \Delta V_{j}(\param) | \phi_{\ell}}
     + \braket{\phi_{\ell'} | \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} \notag\\
     & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) | \phi_{\ell}} \notag\\
     & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} + (i \leftrightarrow j),
@@ -120,7 +128,7 @@ for convenience.
 The latter relation yields
 $$
 \begin{aligned}
-    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | K_i V_i^{-1} \Delta V_{j}(\param) V_j^{-1} K_j | \phi_{\ell}} + (i \leftrightarrow j).
+    \dU_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | K_i V_i^{-1} \Delta V_{j}(\param) V_j^{-1} K_j | \phi_{\ell}} + (i \leftrightarrow j).
 \end{aligned}
 $$
 
@@ -128,9 +136,16 @@ Regardless of how @eq-delta_u_tilde is evaluated, the efficient evaluation of $\
 This is achieved due to the affine dependence of $V$ on the parameters $\param$:
 $$
 \begin{align}
-    V(\param) = V_0 + \sum_{i=1}^{N_\theta} \theta_i V_i
+    V(\param) = V^0 + \sum_{i=1}^{N_\theta} \theta_i V^1_i,
 \end{align}
 $$
+which implies
+$$
+\begin{align}
+    \dU(\param) = \dU^0 + \sum_{i=1}^{N_\theta} \theta_i \Delta \widetilde {U}^1_i,
+\end{align}
+$$
+where the superscripts $0$ and $1$ refer to parameter-independent and -dependent terms, respectively. 
 This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
 The value of $\Delta \widetilde U(\param)$ at any new parameter value is then easily reconstructed from each term.
 
