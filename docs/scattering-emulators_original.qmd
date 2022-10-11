@@ -1,0 +1,285 @@
+---
+output: html_notebook
+format:
+  html:
+    code-fold: show
+    code-tools: true
+jupyter: python3
+---
+
+# Scattering Emulators {#sec-scattering-emulators}
+
+::: {.hidden}
+{{< include macros.qmd >}}
+:::
+
+
+## Kohn Emulators {#sec-kohn} 
+
+We would like to solve the (coupled) Schrodinger equation for scattering systems ($E>0$) across a range of parameters $\param$:
+$$
+\begin{aligned} %\label{eq:schrodinger_coupled}
+    H^{s's}(\param) \ket{\psi^{s\ell}} = E \ket{\psi^{s'\ell}}.
+\end{aligned}
+$$ {#eq-schrodinger_coupled}
+Here, $s$ is an angular momentum variable whose sum is implied, and $s'$ indexes the set of coupled equations to be simultaneously solved for a given $\ell$.
+In the uncoupled case, this reduces to a single equation with $s' = \ell$.
+Notably, even in the coupled case, each set of coupled equations can be solved independently for each choice of $\ell$ and $E$, which will have implications for how our emulator is constructed.
+We assume that $E$ is fixed throughout; the process can be repeated separately across a set of energies to create a suite of emulators, if desired.
+
+Projection-based emulation begins by first writing @eq-schrodinger_coupled in integral form.
+Here we choose the Kohn variational principle (KVP), which states that
+$$
+\begin{aligned} %\label{eq:kvp_coupled}
+    \mathcal{K}^{\ell'\ell}[\psi] = K^{\ell'\ell} - 2\mu \braket{\psi^{\ell's'} | [H - E]^{s's} | \psi^{s\ell}}
+\end{aligned}
+$$ {#eq-kvp_coupled}
+where $K$ is the on-shell reactance matrix.
+The functional yields $\mathcal{K}[\psi] = K$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K^2)$.
+Rather than finding a wave function $\ket{\psi}$ that satisfies @eq-schrodinger_coupled, our task now has now changed to finding a wave function that makes @eq-kvp_coupled stationary.
+
+The key to creating an efficient emulator from @eq-kvp_coupled follows from a trial wave function ansatz
+$$
+\begin{align} %\label{eq:trial_ansatz}
+    \ket{\widetilde\psi^{s\ell}} \equiv \sum_{i=1}^{N_b} \beta_i^{\ell'\ell} \ket{\psi_i^{s\ell}}
+\end{align}
+$$ {#eq-trial_ansatz}
+where $\{\ket{\psi_i^{s\ell}}\}_s$ is the exact solution to @eq-schrodinger_coupled for a choice of $\param_i$, and where we have labeled the basis coefficient with the indices $\ell',\ell$ which reflect the component of the KVP to be emulated as in @eq-kvp_coupled.
+The reason that each angular component of $\mathcal{K}^{\ell'\ell}$ can be emulated separately---with its own trial wave function---follows, in part, from the fact that @eq-schrodinger_coupled can be solved independently for each choice of $\ell$ (see App.~\ref{sec:formalism_details} for more details).
+Note that for the NN scattering coupled channels considered here, this will result in 3 distinct variational principles being enforced: one for each of $\ell' = \ell = j\pm1$ and one for the off-diagonal component.
+
+Inserting @eq-trial_ansatz into @eq-kvp_coupled yields
+$$
+\mathcal{K}^{\ell'\ell} = \beta_i^{\ell'\ell}K_i^{\ell'\ell} - \frac{1}{2} \beta_i^{\ell'\ell} \Delta \widetilde U_{ij}^{\ell'\ell}\beta_j^{\ell'\ell} %\label{eq:kvp_coupled_reduced}
+$$ {#eq-kvp_coupled_reduced}
+where we have defined
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell} & \equiv 2\mu \braket{\psi_i^{\ell's'} | [H - E]^{s's} | \psi_j^{s\ell}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{\ell' s'} | [H - E]^{s's} | \psi_i^{s\ell}} \notag\\
+    & = 2\mu \braket{\psi_i^{\ell's'} | [V(\theta) - V_j]^{s's} | \psi_j^{s\ell}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{\ell's'} | [V(\theta) - V_i]^{s's} | \psi_i^{s\ell}},
+    %\label{eq:delta_u_tilde}
+\end{aligned}
+$$ {#eq-delta_u_tilde}
+In the final line we have added and subtracted $V_i \equiv V(\param_i)$ and $V_j \equiv V(\param_j)$ to use @eq-schrodinger_coupled.
+Emulating $\psi$ (via @eq-trial_ansatz), and hence $K$ (via @eq-kvp_coupled_reduced), has now reduced to determining the values of $\beta$ that make @eq-kvp_coupled_reduced stationary under the constraint that $\sum_i \beta_i = 1$ such that the wave functions remain normalized.
+Such a solution can be found using a Lagrange multiplier $\lambda$, and is given by
+$$
+\begin{aligned} %\label{eq:coeff_solution}
+    \begin{pmatrix}
+    \Delta \widetilde U^{\ell'\ell} & \vec{1} \\ 
+          \vec{1} \, {}^\intercal & 0
+    \end{pmatrix}
+    \begin{pmatrix}
+          \vec{\beta} \, {}^{\ell'\ell} \\ 
+          \lambda \, {}^{\ell'\ell}
+    \end{pmatrix}
+    =
+    \begin{pmatrix}
+          \vec{K} \, {}^{\ell'\ell} \\ 
+          1
+    \end{pmatrix}.
+\end{aligned}
+$$ {#eq-coeff_solution}
+The fact that @eq-coeff_solution is a simple linear system means that if the $N_b$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+
+Thus far we have not specified whether the solution is to be obtained in coordinate space or momentum space.
+The only difference between these approaches is the way we obtain the basis functions $\psi_i$ used to construct the trial ansatz in @eq-trial_ansatz, and thus the manner in which $\Delta \widetilde U$ is evaluated.
+If one had already obtained $\{\psi_i\}$ in coordinate space, then $\Delta \widetilde U$ could be straightforwardly evaluated, particularly for short ranged potentials $V(\param)$ where the asymptotic behavior of $\psi$ is irrelevant. (Note that long-ranged potentials, such as Coulomb, would drop out of @eq-delta_u_tilde if its parameters are fixed.)
+
+In momentum space, we instead initially solve for the $K$ matrix and must relate $K$ to $\psi$ before using @eq-delta_u_tilde.
+There are a couple relations one could use to accomplish this goal: the definition of the scattering wave function using the $K$ matrix
+$$
+\begin{aligned}
+    \ket{\psi} = \ket{\phi} + G_0 K \ket{\phi},
+\end{aligned}
+$$
+where $\phi$ is the free-space wave function, or the definition of $K$ itself
+$$
+\begin{aligned}
+    K\ket{\phi} \equiv V\ket{\psi}.
+\end{aligned}
+$$
+The first relation yields
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | \Delta V_{j}(\param) | \phi_{\ell}}
+    + \braket{\phi_{\ell'} | \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} \notag\\
+    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) | \phi_{\ell}} \notag\\
+    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} + (i \leftrightarrow j),
+\end{aligned}
+$$
+where sums over coupled states are implied by the operator products, and we have defined
+$$
+\begin{aligned}
+    \Delta V_{i}(\param) \equiv V(\param) - V_i
+\end{aligned}
+$$
+for convenience.
+The latter relation yields
+$$
+\begin{aligned}
+    \Delta \widetilde U_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | K_i V_i^{-1} \Delta V_{j}(\param) V_j^{-1} K_j | \phi_{\ell}} + (i \leftrightarrow j).
+\end{aligned}
+$$
+
+Regardless of how @eq-delta_u_tilde is evaluated, the efficient evaluation of $\Delta \widetilde U$ across a range of $\param$ values is critical to the applicability of the emulator.
+This is achieved due to the affine dependence of $V$ on the parameters $\param$:
+$$
+\begin{align}
+    V(\param) = V_0 + \sum_{i=1}^{N_\theta} \theta_i V_i
+\end{align}
+$$
+This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
+The value of $\Delta \widetilde U(\param)$ at any new parameter value is then easily reconstructed from each term.
+
+
+
+## Newton Emulators {#sec-newton} 
+
+The Lippmann-Schwinger (LS) equation provides an alternative to scattering problems and is equivalent to solving the Schrodinger equation.
+The LS equation is an integral equation, rather than a differential equation, whose solution is the reactance matrix $K$ (or, the $T^{\pm}$ matrices). 
+This approach is particularly useful when in momentum space, where the $K$ matrix results from a simple matrix solve operation, which sidesteps the need for a differential equation solver.
+It is possible to build a reduced-order model directly from the LS equation by using the Newton variational principle.
+
+
+
+
+
+## Example
+
+```{python}
+#| echo: false
+#| output: false
+%load_ext autoreload
+%autoreload 2
+%matplotlib inline
+
+from IPython.display import display, Markdown
+from emulate import jupyter_show_class_method, markdown_class_method
+```
+
+
+```{python}
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
+from emulate.utils import (
+    yamaguchi_form_factor_momentum_space,
+    yamaguchi_form_factor_position_space,
+)
+from emulate import CompoundMesh, QuadratureType
+from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
+from emulate import setup_rc_params
+from emulate import NewtonEmulator
+from emulate import SeparableKohnEmulator
+from emulate import KohnLippmannSchwingerEmulator
+from emulate import BoundaryCondition
+
+setup_rc_params()
+sns.set_palette('pastel')
+```
+
+
+
+```{python}
+#| tags: [parameters]
+
+hbar2_over_2mu = 1
+nugget = 1e-10
+n_train = 10
+ell = 0
+```
+
+
+Create a compound mesh object for Gaussian quadrature needed below.
+```{python}
+n_intervals = 5
+nodes = np.linspace(0, 10, n_intervals)
+n_points = 20 * np.ones(n_intervals, dtype=int)
+mesh = CompoundMesh(nodes, n_points)
+
+# Use the same mesh for k and r
+k, dk = mesh.x, mesh.w
+r, dr = mesh.x, mesh.w
+```
+
+
+
+```{python}
+
+betas = [2, 3]
+q_cm = np.array([0.1, 1, 2])
+f_k = np.array(
+    [
+        yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
+        for beta in betas
+    ]
+)
+f_r = np.array(
+    [
+        yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
+        for beta in betas
+    ]
+)
+
+
+kohn = SeparableKohnEmulator(
+    v_r=f_r,
+    r=r,
+    dr=dr,
+    v_k=f_k,
+    k=k,
+    dk=dk,
+    q_cm=q_cm,
+    ell=ell,
+    nugget=nugget,
+    use_lagrange_multiplier=True,
+)
+
+rng = np.random.default_rng(1)
+params_dimension = len(betas) * (len(betas) + 1) // 2
+# p_train = rng.uniform(-50, 50, (n_train, params_dimension))
+# p_valid = rng.uniform(-50, 50, params_dimension)
+
+p_train = rng.uniform(-5, 5, (n_train, params_dimension))
+p_valid = rng.uniform(-5, 5, params_dimension)
+
+kohn.fit(p_train)
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(3.4, 3))
+
+u_train = kohn.psi_train * r
+
+u_exact = kohn.predict_wave_function(p_valid) * r
+u_valid = kohn.emulate_wave_function(p_valid) * r
+
+r_mask = r <= 10
+
+ax.plot(r[r_mask], u_exact[0, r_mask], **FULL_KWARGS, label="Exact")
+ax.plot(r[r_mask], u_valid[0, r_mask], **PRED_KWARGS, label="Emulator", c='w')
+for i, q_i in enumerate(q_cm):
+    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", zorder=0)
+    ax.plot(r[r_mask], u_train[i][:, r_mask].T, c=f"C{i}", zorder=0)
+
+    ax.plot(r[r_mask], u_exact[i, r_mask], **FULL_KWARGS)
+    ax.plot(r[r_mask], u_valid[i, r_mask], **PRED_KWARGS)
+
+
+ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
+ax.legend()
+ax.set_xlabel("$r$")
+ax.set_ylabel("$u(r)$")
+ax.set_title("Radial wave functions for the Yamaguchi potential")
+# ax.set_xlim(0, 10)
+```
+
+```{python}
+u_valid.shape
+```
