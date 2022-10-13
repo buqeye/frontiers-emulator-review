@@ -82,18 +82,43 @@ class BaseKohnEmulator:
             for j in range(i, n_train):
                 p_j = p_train[j]
                 Vj = V1 @ p_j
+                # dU0[:, i, j] = dU0[:, j, i] = np.einsum(
+                #     "ab,bd,ad->a",
+                #     r**2 * dr * psi_train[:, i],
+                #     -Vi - Vj,
+                #     psi_train[:, j],
+                # )
+                # dU1[:, i, j] = dU1[:, j, i] = np.einsum(
+                #     "ab,bdp,ad->ap",
+                #     r**2 * dr * psi_train[:, i],
+                #     2 * V1,
+                #     psi_train[:, j],
+                # )
                 dU0[:, i, j] = dU0[:, j, i] = np.einsum(
                     "ab,bd,ad->a",
-                    r**2 * dr * psi_train[:, i],
+                    r * dr * psi_train[:, i],
                     -Vi - Vj,
-                    psi_train[:, j],
+                    r * dr * psi_train[:, j],
                 )
                 dU1[:, i, j] = dU1[:, j, i] = np.einsum(
                     "ab,bdp,ad->ap",
-                    r**2 * dr * psi_train[:, i],
+                    r * dr * psi_train[:, i],
                     2 * V1,
-                    psi_train[:, j],
+                    r * dr * psi_train[:, j],
                 )
+
+                # dU0[:, i, j] = dU0[:, j, i] = np.einsum(
+                #     "ab,bd,ad->a",
+                #     r * dr * psi_train[:, i],
+                #     -Vi - Vj,
+                #     r * psi_train[:, j],
+                # )
+                # dU1[:, i, j] = dU1[:, j, i] = np.einsum(
+                #     "ab,bdp,ad->ap",
+                #     r * dr * psi_train[:, i],
+                #     2 * V1,
+                #     r * psi_train[:, j],
+                # )
 
                 V0_sub[:, i, j] = V0_sub[:, j, i] = np.einsum(
                     "ab,bd,ad->a",
