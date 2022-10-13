@@ -2,6 +2,7 @@
 /_site/
 /_book/
 /*_files/
+/_output/
 libs/
 *.ipynb
 
