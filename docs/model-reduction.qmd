@@ -6,7 +6,6 @@ format:
     code-tools: true
 jupyter: python3
 citation: true
-bibliography: references.bib
 appendix-style: default
 license: "CC BY"
 ---
@@ -24,7 +23,7 @@ license: "CC BY"
 
 The holy grail of complex physical simulations is an *emulator* that captures most important features of the simulator, but is much cheaper to evaluate.
 The field of model reduction provides a set of tools for constructing such emulators, or reduced-order models, in a variety of contexts.
-For instance, 
+For instance, [@Trotta:2008qt]
 
 
 ## Gaussian Processes
@@ -49,9 +48,11 @@ GPs share the features that make Gaussian distributions attractive in other cont
 This has led to its incorporation into many machine learning libraries, such as `scikit-learn` and `Tensorflow`, and has found widespread use across disciplines ranging from geography to biology.
 Indeed, it is now simpler than ever to emulate high-fidelity models with a GP.
 
+::: {.content-hidden when-format="pdf"}
 ```{python}
 from sklearn.gaussian_process import GaussianProcessRegressor
 ```
+:::
 
 
 ## Variational principles & the Ritz method

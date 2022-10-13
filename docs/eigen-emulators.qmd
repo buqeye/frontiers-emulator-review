@@ -15,6 +15,7 @@ jupyter: python3
 :::
 
 
+::: {.content-hidden when-format="pdf"}
 ```{python}
 #| echo: false
 #| output: false
@@ -43,6 +44,7 @@ from emulate import EigenEmulator, NCSMEmulator, BoundStateOperator
 setup_rc_params()
 sns.set_palette('pastel')
 ```
+:::
 
 This notebook describes the inner workings of the eigen-emulator and provides examples of its use.
 
@@ -76,6 +78,10 @@ $$
 \end{aligned}
 $$
 Thus $\subspace{E}$ is an approximation to the energy.
+
+
+::: {.content-hidden when-format="pdf"}
+
 
 ## The example problem {#sec-perturbed-oscillator-example}
 
@@ -403,3 +409,6 @@ ax.set_title("Ground-State Radius Residuals")
 ax.set_xlabel("Validation Index")
 # fig.savefig("perturbed_oscillator_ground_state_radius_residuals.png")
 ```
+
+
+:::
