@@ -10,6 +10,7 @@ project:
   #   - eigen-emulators.qmd
   preview:
     port: 1234
+  output-dir: _output
 
 book:
   title: "BUQEYE Guide to Emulators in Nuclear Physics"
@@ -65,12 +66,17 @@ website:
       - model-reduction.qmd
       - eigen-emulators.qmd
 
-bibliography: references.bib
+bibliography:
+  - references.bib
+  - emulator_refs.bib
+  - bayesian_refs.bib
 
 format:
   html:
     theme: cosmo
     top-level-division: section
+    reference-location: margin
+    citation-location: margin
     crossref:
       eq-prefix: "Eq."
       fig-prefix: "Figure"
