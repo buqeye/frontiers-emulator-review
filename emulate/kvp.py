@@ -47,6 +47,7 @@ class BaseKohnEmulator:
         self.n_p = V1.shape[-1]
         self.n_q = len(q_cm)
         self.use_lagrange_multiplier = use_lagrange_multiplier
+        self.is_local = True
 
         self.dU0 = None
         self.dU1 = None
@@ -82,62 +83,41 @@ class BaseKohnEmulator:
             for j in range(i, n_train):
                 p_j = p_train[j]
                 Vj = V1 @ p_j
-                # dU0[:, i, j] = dU0[:, j, i] = np.einsum(
-                #     "ab,bd,ad->a",
-                #     r**2 * dr * psi_train[:, i],
-                #     -Vi - Vj,
-                #     psi_train[:, j],
-                # )
-                # dU1[:, i, j] = dU1[:, j, i] = np.einsum(
-                #     "ab,bdp,ad->ap",
-                #     r**2 * dr * psi_train[:, i],
-                #     2 * V1,
-                #     psi_train[:, j],
-                # )
+
+                psi_left = r * dr * psi_train[:, i]
+                if self.is_local:
+                    psi_right = r * psi_train[:, j]
+                else:
+                    psi_right = r * dr * psi_train[:, j]
+
                 dU0[:, i, j] = dU0[:, j, i] = np.einsum(
                     "ab,bd,ad->a",
-                    r * dr * psi_train[:, i],
+                    psi_left,
                     -Vi - Vj,
-                    r * dr * psi_train[:, j],
+                    psi_right,
                 )
                 dU1[:, i, j] = dU1[:, j, i] = np.einsum(
                     "ab,bdp,ad->ap",
-                    r * dr * psi_train[:, i],
+                    psi_left,
                     2 * V1,
-                    r * dr * psi_train[:, j],
+                    psi_right,
                 )
-
-                # dU0[:, i, j] = dU0[:, j, i] = np.einsum(
-                #     "ab,bd,ad->a",
-                #     r * dr * psi_train[:, i],
-                #     -Vi - Vj,
-                #     r * psi_train[:, j],
-                # )
-                # dU1[:, i, j] = dU1[:, j, i] = np.einsum(
-                #     "ab,bdp,ad->ap",
-                #     r * dr * psi_train[:, i],
-                #     2 * V1,
-                #     r * psi_train[:, j],
-                # )
 
                 V0_sub[:, i, j] = V0_sub[:, j, i] = np.einsum(
                     "ab,bd,ad->a",
-                    r**2 * dr * psi_train[:, i],
+                    psi_left,
                     V0,
-                    psi_train[:, j],
+                    psi_right,
                 )
                 V1_sub[:, i, j] = V1_sub[:, j, i] = np.einsum(
                     "ab,bdp,ad->ap",
-                    r**2 * dr * psi_train[:, i],
+                    psi_left,
                     V1,
-                    psi_train[:, j],
+                    psi_right,
                 )
 
         self.V0_sub = V0_sub
         self.V1_sub = V1_sub
-        # inv_mass = self.inv_mass
-        # dU0 *= 1 / inv_mass
-        # dU1 *= 1 / inv_mass
         self.dU0 = dU0
         self.dU1 = dU1
         self.p_train = p_train
