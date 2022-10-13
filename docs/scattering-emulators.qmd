@@ -190,8 +190,15 @@ $$ {#eq-schwinger-vp}
 This too has the stationary property $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K)^2$ when $\psi$ is a wave function satisfying the LS equation.
 If we follow the MOR philosophy and insert a trial function $\trial\psi$, then the stationary condition becomes
 $$
-\left[\braket{\psi_i | V - V G_0 V | \psi_j} + \braket{\psi_j | V - V G_0 V | \psi_i} \right]\coeff_j = \braket{\psi_i | V | \phi} + \braket{\phi | V | \psi_i}
+W_{ij}\coeff_j = w_i
 $$ {#eq-schwinger-linear}
+where
+$$
+\begin{aligned}
+W_{ij} & = \braket{\psi_i | V - V G_0 V | \psi_j} + \braket{\psi_j | V - V G_0 V | \psi_i} \\
+w_i & = \braket{\psi_i | V | \phi} + \braket{\phi | V | \psi_i}
+\end{aligned}
+$$
 for all $i = 1, \dots, \nbasis$.
 
 This same system of equations can be determined via a Galerkin projection procedure.
@@ -206,11 +213,35 @@ $$
 The weak form can then be converted to its discrete form by setting $\psi \to \trial\psi$ and enforcing orthogonality against $\ket{\zeta_i} = V \ket{\psi_i}$ for $i = 1, \dots, \nbasis$.
 This yields
 $$
-\braket{\psi_i | V - V G_0 V | \psi_j} \coeff_j = \braket{\psi_i | V | \phi}.
+Q_{ij} \coeff_j = \braket{\psi_i | V | \phi}
+$$ {#eq-schwinger-linear-asymmetric}
+where
+$$
+Q_{ij} = \braket{\psi_i | V - V G_0 V | \psi_j}
 $$
 The symmetrized version is obtained by creating the reduced weak form starting with $\bra{\psi}$.
 Because the reduced form from $\ket{\psi}$ and $\bra{\psi}$ yield identical $\coeffs$, adding them together yields @eq-schwinger-linear.
 Thus, the coefficients found by making @eq-schwinger-vp stationary are identical to those found via the Galerkin procedure for @eq-ls-wave-function.
+
+Starting from the Schwinger variational principle has the benefit of yielding an emulator not only for $\psi$, but also for $K$.
+If one had not known of the Schwinger variational principle beforehand, it may seem that the Galerkin procedure only provides an emulator for $\psi$.
+However, it turns out that one can emulate $K$ in a manner that is equivalent to the Schwinger variational principle.
+By inserting the coefficients found via @eq-schwinger-linear into the definition of $\trial\psi$, one can write
+$$
+\begin{aligned}
+\braket{\phi' | K | \phi} = \braket{\phi' | V | \psi} & \approx \braket{\phi' | V | \trial\psi} \notag \\
+& = \sum_{ij} \braket{\phi' | V | \psi_i} Q^{-1}_{ij} \braket{\psi_j | V | \phi}.
+\end{aligned}
+$$
+This is exactly the solution for $K$ found via the LS equation while assuming a finite-rank approximation for $V$:
+$$
+V^{f} = \sum_{ij} V \ket{\psi_i} \Lambda_{ij} \bra{\psi_j} V
+$$
+where
+$$
+\Lambda_{ij}^{-1} = \braket{\psi_i | V | \psi_j}.
+$$
+It is known that the Schwinger variational principle yields a $K$ matrix that is equivalent to that found via a finite-rank approximation to $V$ [CITE], which shows that the Galerkin projection described in this section is identical to the Schwinger variational principle.
 
 ## Origin Emulators {#sec-scattering-origin} 
 
