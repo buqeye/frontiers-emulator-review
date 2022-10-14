@@ -14,6 +14,11 @@ jupyter: python3
 :::
 
 
+In this section we describe the various MOR emulators one could construct for quantum scattering systems.
+Throughout, we note the relationship between the variational principles from which emulators have been constructed in recent works.
+We also describe how each of the results from VPs could instead be derived from Galerkin projections.
+
+
 ## Kohn Emulators {#sec-kohn}
 
 
@@ -166,7 +171,75 @@ The value of $\Delta \widetilde U(\param)$ at any new parameter value is then ea
 ### Removing the Lagrange multiplier {#sec-kohn-no-lagrange}
 
 
+The Lagrange multiplier can be removed from the emulator equations by solving for it in terms of other known quantities.
+By starting with
+$$
+\lagmult \vec{1} = \vec{K} - \dU \coeffs
+$$
+one can write
+$$
+\lagmult = \frac{1}{\nbasis} \left[\vec{1}\cdot\vec{K} - \vec{1}^T\dU \coeffs\right].
+$$
+Now substituting this in the reduced KVP
+$$
+\begin{aligned}
+\mathcal{K} & = K_i\coeff_i - \frac{1}{2} \coeff_i \dU_{ij} \coeff_j - \lagmult \left[\vec{1}\cdot\coeffs - 1\right]
+\end{aligned}
+$$
+and enforcing stationarity yields
+$$
+M\coeffs = \vec{K} - \frac{1}{\nbasis} \left[\dU \vec{1} + \vec{K}\cdot\vec{1}\right]
+$$ {#eq-kohn-solution-no-lagrange}
+where
+$$
+M_{ij} = \dU_{ij} - \frac{1}{\nbasis} \sum_{k} \left[\dU_{ik} + \dU_{kj}\right].
+$$
+This formulation requires a matrix solve of one fewer dimension than @eq-coeff_solution and @eq-kohn-solution-no-lagrange tends to be a better conditioned system to solve as well.
+
+
 ### Generalized Kohn Variational Principle {#sec-kohn-general}
+
+$$
+\begin{aligned}
+    \mathcal{L}[\psi] = L - \frac{2\mu}{q} \braket{\psi | [H - E] | \psi}
+\end{aligned}
+$$ {#eq-kvp-general}
+
+
+### Coupled Systems {#sec-kohn-coupled}
+
+In this section we have not yet considered partial wave projections because the KVP is more general.
+However, calculations are sometimes more conveniently performed after a partial-wave expansion has occurred.
+In these cases, it is useful to understand how the KVP decomposes as well.
+
+Suppose that the incoming and outgoing channels are labeled by $s'$ and $s$, respectively.
+(If the channel is uncoupled, we could replace $ss' \to \ell$ throughout the following.)
+The KVP then generalizes simply to
+$$
+\mathcal{K}^{ss'} = \beta_i K_i^{ss'} - \frac{1}{2} \beta_i \dU_{ij}^{ss'}\beta_j
+$$ {#eq-kvp_reduced_coupled}
+where
+$$
+\begin{aligned}
+    \dU_{ij}^{ss'} & \equiv 2\mu \braket{\psi_i^{st} | [H - E]^{tt'} | \psi_j^{t's'}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
+    & = 2\mu \braket{\psi_i^{st} | [V(\param) - V_j]^{tt'} | \psi_j^{t's'}} \notag\\
+    & ~+ 2\mu \braket{\psi_j^{st} | [V(\param) - V_i]^{tt'} | \psi_i^{t's'}}.
+\end{aligned}
+$$ {#eq-delta_u_tilde_coupled}
+Solving for $\coeffs$ now proceeds as in @eq-coeff_solution but for a specific choice of $ss'$ channels.
+Note that the coefficients $\coeffs$ are to be determined *independently* for each $ss'$ pair.
+
+This independence can be understood in the following ways.
+First, note that $\mathcal{K}^{ss'}$ is independently stationary for each $ss'$ pair.
+This becomes particularly apparent when considering how one would solve for the coefficients in the uncoupled case where $ss'\to\ell$.
+Here, each partial wave is completely independent of one another and thus it would not make sense to mix the VPs or the $\coeff$ across choices of $\ell$.
+Now consider adiabatically turning on a coupling between two partial waves $s$ and $s'$: the coefficients $\coeffs^{(s)}$ and $\coeffs^{(s')}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, $\coeffs^{(ss')}$.
+
+An alternative way to understand how the $\coeffs$ enter in the coupled case is to instead start with the Schrodinger equation and enforce (Petrov-)Galerkin orthogonalization as in @sec-kohn-galerkin.
+For the diagonal channels, the test functions are chosen to have the same outgoing channel as the trial functions, making the procedure of standard Galerkin form.
+But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$), which is instead a Petrov-Galerkin approach.
+The linear equations to be solved are exactly what one would obtain from enforcing stationarity in @eq-kvp_reduced_coupled for each $ss'$ independently.
 
 
 ### Relating Kohn to Galerkin Orthogonality {#sec-kohn-galerkin}
@@ -183,11 +256,18 @@ It is possible to build a reduced-order model directly from the LS equation by u
 
 ## Schwinger Emulators {#sec-schwinger}
 
-The Schwinger variational principle is given by
+The Schwinger variational principle (SVP) is given by
 $$
 \mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} - \braket{\phi | V | \trial\psi} + \braket{\trial\psi | V - V G_0 V | \trial\psi}
 $$ {#eq-schwinger-vp}
 This too has the stationary property $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K)^2$ when $\psi$ is a wave function satisfying the LS equation.
+The SVP is known to have better numerical properties comparied to the KVP, including the removal of so-called spurious singularities [CITE].
+Furthermore, @Takatsuka1981SchwingerKohnRelationship showed that one can write down a variational principle of increasing order, of which the KVP is the leading order and the SVP is second order.
+Because the SVP is of higher order than the KVP, then given identical trial functions, the SVP will tend to be more accurate [@Takatsuka1981SchwingerKohnRelationship].
+However it requires matrix products with a Greens function and is quadratic in $V$, both of which complicate its evaluation.
+The SVP has been applied successfully in various settings in both nuclear physics and quantum chemistry, including [EXAMPLES].
+However, it has not, to our knowledge, been applied in the spirit of the RBM using a snapshot-based approach.
+
 If we follow the MOR philosophy and insert a trial function $\trial\psi$, then the stationary condition becomes
 $$
 W_{ij}\coeff_j = w_i
@@ -556,7 +636,7 @@ d_psi_train = []
 d2_psi_train = []
 initial_values = np.array([0, 1])
 for p_i in p_train:
-    psi_i, d_psi_i = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_i, KAPPAS, q_cm)).T
+    psi_i, d_psi_i = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_i, KAPPAS, q_cm), printmessg=True, atol=1e-13, rtol=1e-11).T
     psi_train.append(psi_i)
     d_psi_train.append(d_psi_i)
 
@@ -573,6 +653,7 @@ ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
 
 ax.axhline(0, 1, 0, c='k', lw=0.8, zorder=-1)
 ax.set_xlim(0, 10)
+ax.set_ylim(-5, 5)
 
 
 U1 = compute_U_vector(r, KAPPAS)
