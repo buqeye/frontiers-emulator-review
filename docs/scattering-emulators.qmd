@@ -212,7 +212,7 @@ In this section we have not yet considered partial wave projections because the 
 However, calculations are sometimes more conveniently performed after a partial-wave expansion has occurred.
 In these cases, it is useful to understand how the KVP decomposes as well.
 
-Suppose that the incoming and outgoing channels are labeled by $s'$ and $s$, respectively.
+Let $s'$ and $s$ denote the incoming and outgoing channels, respectively.
 (If the channel is uncoupled, we could replace $ss' \to \ell$ throughout the following.)
 The KVP then generalizes simply to
 $$
@@ -233,18 +233,64 @@ Note that the coefficients $\coeffs$ are to be determined *independently* for ea
 This independence can be understood in the following ways.
 First, note that $\mathcal{K}^{ss'}$ is independently stationary for each $ss'$ pair.
 This becomes particularly apparent when considering how one would solve for the coefficients in the uncoupled case where $ss'\to\ell$.
-Here, each partial wave is completely independent of one another and thus it would not make sense to mix the VPs or the $\coeff$ across choices of $\ell$.
+Here, each partial wave is completely independent of one another and thus it would not make sense to mix the VPs or the $\coeff$ across values of $\ell$.
 Now consider adiabatically turning on a coupling between two partial waves $s$ and $s'$: the coefficients $\coeffs^{(s)}$ and $\coeffs^{(s')}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, $\coeffs^{(ss')}$.
+Thus, even in the coupled case, there are multiple independent sets of coefficients to determine: one for each pair of $ss'$.
 
 An alternative way to understand how the $\coeffs$ enter in the coupled case is to instead start with the Schrodinger equation and enforce (Petrov-)Galerkin orthogonalization as in @sec-kohn-galerkin.
 For the diagonal channels, the test functions are chosen to have the same outgoing channel as the trial functions, making the procedure of standard Galerkin form.
-But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$), which is instead a Petrov-Galerkin approach.
+But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$).
+Because the basis of test functions differs from the basis of the trial function, this is instead a Petrov-Galerkin approach.
 The linear equations to be solved are exactly what one would obtain from enforcing stationarity in @eq-kvp_reduced_coupled for each $ss'$ independently.
 
 
 ### Relating Kohn to Galerkin Orthogonality {#sec-kohn-galerkin}
 
+Rather than starting with a variational principle, the Galerkin approach starts with the Schrodinger equation.
+Like the variational approach, it expands $\ket{\psi}$ as a linear combination of known functions (snapshots), but determines the basis coefficients by enforcing orthogonality against a set of *test functions*.
+To arrive at the KVP, we choose the test function to be the scattering wave: $\ket{\chi} = \ket{\psi} - \ket{\phi} = G_0 V \ket{\psi}$.
+The resulting set of equations is equivalent to those that follow from making the KVP stationary.
 
+
+The weak form of the Schrodinger equation with our asymptotic constraint is given by
+$$
+    \braket{\chi | [H - E] | \trial\chi} = - \braket{\chi | V | \phi}
+$$
+where we have left multiplied the Schrodinger equation by $\bra{\chi}$ and used the Lippmann Schwinger equation $\ket{\trial\psi} = \ket{\phi} + \ket{\trial\chi}$.
+By restricting the trial and test functions to finite bases, the set of constraints provided by the Galerkin approach is then
+$$
+    \braket{\chi_i | [H - E] | \chi_j} \coeffs_j = -\braket{\chi_i | V | \phi}
+$$
+for all $i = 1, \dots, \nbasis$.
+If one is so inclined, this equation can be made symmetric by using integration by parts and noting that the boundary term vanishes if $\ell' = \ell \mod 2$.
+The symmetric linear equation then becomes
+$$
+\begin{aligned}
+    A_{ij}\weights_j & = b_i \\
+    A_{ij} & =  \braket{\chi_i | [H - E] | \chi_j} + (i\leftrightarrow j) \\
+    b_i & = - 2\braket{\chi_i | V | \phi}
+\end{aligned}
+$$
+Although it does not look like it, this is exactly the linear equation to be solved for the KVP emulator (barring the Lagrange multiplier term, which should be included above to enforce the normalization condition).
+Starting with the KVP and using the LS equation for wave functions,
+$$
+\begin{aligned}
+    \mathcal{K} & = K - 2\mu \braket{\psi | [H - E] | \psi} \notag\\
+    & = K \notag \\
+    & \quad - 2\mu \braket{\phi | [H - E] | \phi} 
+     - 2\mu\braket{\chi | [H - E] | \chi} \notag \\
+    & \quad - 2\mu \braket{\phi | [H - E] | \chi} - 2\mu \braket{\chi | [H - E] | \phi} \notag\\
+    & = - 2\mu \braket{\phi | [H - E] | \phi}  - 2\mu\braket{\chi | [H - E] | \chi} \notag\\
+    & \quad - 2\mu \braket{\phi | V | \chi} - 2\mu \braket{\chi | V | \phi}
+\end{aligned}
+$$
+where we used (via integration by parts)
+$$
+    2\mu\left[\braket{\phi | [H - E] | \chi} - \braket{\phi | [H^{\dagger} - E] | \chi}\right] = K.
+$$
+Inserting the trial and test bases while enforcing stationarity in the above equation yields the linear equation found via the Galerkin method (in its symmetric form).
+One of the benefits of the variational approach is that the matrices obtained are always symmetric, which has numerical benefits.
+Furthermore, since the KVP itself is a functional for $K$, one can use the KVP to emulate $K$, which might not have been immediately apparent from the straightforward Galerkin approach.
 
 ## Newton Emulators {#sec-newton} 
 
@@ -254,17 +300,93 @@ This approach is particularly useful when in momentum space, where the $K$ matri
 It is possible to build a reduced-order model directly from the LS equation by using the Newton variational principle.
 
 
+
+We aim to construct an efficient emulator for the LS equation given a short-range potential $V(\param)$ that depends smoothly on a set of parameters $\param$, such as the low-energy couplings of a chiral potential.
+Specifically, we consider here the LS equation for the scattering $K$ matrix, which reads in operator form^[
+All subsequent equations work for any boundary conditions imposed via $G_0$, although we use its principal value formulation here.
+That is, using $G_0^{(\pm)}$ and making the replacement $K \to T^{(\pm)}$ will yield an emulator for $T^{(\pm)}$. 
+]
+$$
+\begin{align} %\label{eq:LS}
+    K = V + V G_0 K,
+\end{align}
+$$ {#eq-LS}
+with the free-space Green's function operator $G_0(E_q)$ at the on-shell energy $E_q = q^2/2\mu$ and reduced mass $\mu$. 
+The energy dependence is implicit in what follows.
+We stress that using the $K$ matrix is just a convenient choice. In fact, $T^{(\pm)}$ can be emulated by imposing the associated boundary conditions on $G_0$.
+Although the @eq-LS has the formal solution
+$$
+    K = \left(\mathbb{1} - V G_0 \right)^{-1} V,
+$$ {#eq-LS_formal_sol}
+evaluating @eq-LS_formal_sol in a given basis can be prohibitively slow for large-scale Monte Carlo sampling because of the fine (quadrature) grids typically necessary to obtain high-accuracy results. 
+
+Instead of solving @eq-LS directly for each sampling vector $\param$, we propose a variational approach
+starting with a trial $K$ matrix as in the RBM approach:
+$$
+    \trial K(\coeffs) = \sum_{i=1}^{\nbasis}\coeff_i K_i.
+$$ {#eq-TritzTrial}
+Here, $\{K_i \equiv K(\param_i) \}_{i=1}^{\nbasis}$ are the exact solutions of the @eq-LS for the training set $\{\param_i\}_{i=1}^{\nbasis}$, while $\{\coeff_i\}_{i=1}^{\nbasis}$ are a priori unknown coefficients.^[
+The coefficients are not normalized, \ie,  $\sum_{i=1}^{\nbasis}\coeff_{i} \neq 1$, as opposed to the Kohn variational approach in @Furnstahl:2020abp.
+]
+To determine these coefficients at each $\param$, we apply Newton's variational method [@newton2002scattering; @Rabitz:1973nm], which provides a stationary approximation to the exact scattering $K$ matrix using the functional
+$$
+\begin{split}
+    \mathcal{K}[\trial K] &= V + V G_0 \trial K + \trial K G_0 V \\
+    & \quad - \trial K G_0 \trial K + \trial K G_0 V G_0 \trial K,
+\end{split}
+$$ {#eq-LS_identity}
+given a trial matrix $\trial K$ such as the one in @eq-TritzTrial.
+The functional @eq-LS_identity is stationary about exact solutions of the LS equation, i.e., $\mathcal{K}[K+\delta K] = K + (\delta K)^2$.
+
+In practice, we determine the stationary solution of the functional @eq-LS_identity in a chosen basis and emulate the scattering $K$~matrix as the matrix element $\braket{\phi' | K | \phi}$. For example, one could choose $\ket{\phi}$ to be a plane-wave partial-wave basis $\ket{k\ell m}$ with momentum $k$ and angular momentum quanta $(l,m)$, or one could keep the angular dependence explicit via $\ket{\phi}=\ket{\mathbf{k}}$ in a single-particle basis.
+We are interested in emulating $K$ at the on-shell energy $E_q$, so then $k = k' = q$ for $\ket{\phi}$ and $\bra{\phi'}$.
+Expressed in the chosen basis, simplifying the functional @eq-LS_identity after inserting @eq-TritzTrial yields
+$$
+    \braket{\phi' | \mathcal{K}(\param, \coeffs) | \phi} = \braket{\phi' | V(\param) | \phi} + \coeffs^\trans \vec{m}(\param) - \frac{1}{2} \coeffs^\trans  M(\param) \coeffs,
+$$ {#eq-LS_identity_beta}
+with
+$$
+\begin{aligned}
+    m_i(\param) & = \bra{\phi'} \left[K_i G_0 V(\param) + V(\param) G_0 K_i\right] \ket{\phi}, \label{eq:m_vec} \\
+    M_{ij}(\param) & = \bra{\phi'} [
+                       K_i G_0 K_j - K_i G_0 V(\param) G_0 K_j \notag \\
+    & \hspace{0.29in} + K_j G_0 K_i - K_j G_0 V(\param) G_0 K_i
+    ] \ket{\phi}. \label{eq:M_mat}
+\end{aligned}
+$$
+If the potential $V(\param)$ is linear in the parameter vector $\param$,
+then $\vec{m}$ and $M$
+can be efficiently reconstructed by linear combinations of matrices pre-computed during the training phase of the emulator.
+This results in substantial improvements in CPU time, \eg, for chiral nucleon-nucleon (NN) interactions.
+
+By imposing the stationary condition $\dd \mathcal{K} /\mathup{d} \coeffs = 0$, one then finds
+$\coeffsopt(\param)$ such that $M \coeffsopt = \vec{m}$.
+Given that the optimal $\coeffsopt(\param)$ yields a trial matrix @eq-TritzTrial with an error $\delta K$, we insert $\coeffsopt$ in @eq-LS_identity_beta to obtain an error $(\delta K)^2$.
+The resulting emulator $\mathcal{K}_\star(\param) \equiv \mathcal{K}(\param, \coeffsopt)$ is then
+$$
+    \braket{\phi' | K  | \phi} \approx
+    \braket{\phi' | \mathcal{K} | \phi} =
+    \braket{\phi' | V | \phi} + \frac{1}{2} \vec{m}^\trans M^{-1} \vec{m}.
+$$ {#eq-emulator}
+Equations~\eqref{eq:m_vec}--\eqref{eq:emulator} are the main expressions for emulating scattering observables
+with short-range interactions.
+We extend the implementation to the long-range Coulomb potential in Sec.~\ref{sec:coulomb}.^[
+Emulating the wave function could follow from working out $\ket{\psi(\param)} = \ket{\phi} + G_0 \mathcal{K}_\star(\param)\ket{\phi}$, where again the appropriate boundary conditions are implied by the choice of $G_0$ [@newton2002scattering; @taylor2006scattering].
+]
+
+
 ## Schwinger Emulators {#sec-schwinger}
 
 The Schwinger variational principle (SVP) is given by
 $$
-\mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} - \braket{\phi | V | \trial\psi} + \braket{\trial\psi | V - V G_0 V | \trial\psi}
+\mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} - \braket{\trial\psi | V - V G_0 V | \trial\psi}
 $$ {#eq-schwinger-vp}
 This too has the stationary property $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K)^2$ when $\psi$ is a wave function satisfying the LS equation.
-The SVP is known to have better numerical properties comparied to the KVP, including the removal of so-called spurious singularities [CITE].
-Furthermore, @Takatsuka1981SchwingerKohnRelationship showed that one can write down a variational principle of increasing order, of which the KVP is the leading order and the SVP is second order.
+The SVP is known to have better numerical properties comparied to the KVP.
+For example, @Takatsuka1981SchwingerKohnRelationship showed that one can write down a variational principle of increasing order, of which the KVP is the leading order and the SVP is second order.
 Because the SVP is of higher order than the KVP, then given identical trial functions, the SVP will tend to be more accurate [@Takatsuka1981SchwingerKohnRelationship].
 However it requires matrix products with a Greens function and is quadratic in $V$, both of which complicate its evaluation.
+Furthermore, although many have claimed that it is free of anomalies, the SVP does actually suffer from anomalies as well [@ADHIKARI1991435].
 The SVP has been applied successfully in various settings in both nuclear physics and quantum chemistry, including [EXAMPLES].
 However, it has not, to our knowledge, been applied in the spirit of the RBM using a snapshot-based approach.
 
