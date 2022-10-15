@@ -357,7 +357,7 @@ $$
 If the potential $V(\param)$ is linear in the parameter vector $\param$,
 then $\vec{m}$ and $M$
 can be efficiently reconstructed by linear combinations of matrices pre-computed during the training phase of the emulator.
-This results in substantial improvements in CPU time, \eg, for chiral nucleon-nucleon (NN) interactions.
+This results in substantial improvements in CPU time, *e.g.*, for chiral nucleon-nucleon (NN) interactions.
 
 By imposing the stationary condition $\dd \mathcal{K} /\mathup{d} \coeffs = 0$, one then finds
 $\coeffsopt(\param)$ such that $M \coeffsopt = \vec{m}$.
