@@ -24,7 +24,7 @@ We also describe how each of the results from VPs could instead be derived from 
 
 ### Theory {#sec-kohn-theory}
 
-We would like to solve the Schrodinger equation for scattering systems (at center-of-mass $E > 0$) across a range of parameters $\param$:
+We would like to solve the Schrödinger equation for scattering systems (at center-of-mass $E > 0$) across a range of parameters $\param$:
 $$
 \begin{aligned}
     H(\param) \ket{\psi} = E \ket{\psi}.
@@ -159,9 +159,9 @@ $$
 $$
 which implies
 $$
-\begin{align}
+\begin{aligned}
     \dU(\param) = \dU^0 + \sum_{i=1}^{N_\theta} \theta_i \Delta \widetilde {U}^1_i,
-\end{align}
+\end{aligned}
 $$
 where the superscripts $0$ and $1$ refer to parameter-independent and -dependent terms, respectively.
 This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
@@ -307,9 +307,9 @@ All subsequent equations work for any boundary conditions imposed via $G_0$, alt
 That is, using $G_0^{(\pm)}$ and making the replacement $K \to T^{(\pm)}$ will yield an emulator for $T^{(\pm)}$. 
 ]
 $$
-\begin{align} %\label{eq:LS}
+\begin{aligned}
     K = V + V G_0 K,
-\end{align}
+\end{aligned}
 $$ {#eq-LS}
 with the free-space Green's function operator $G_0(E_q)$ at the on-shell energy $E_q = q^2/2\mu$ and reduced mass $\mu$. 
 The energy dependence is implicit in what follows.
@@ -346,20 +346,23 @@ $$
 $$ {#eq-LS_identity_beta}
 with
 $$
+    m_i(\param) = \bra{\phi'} \left[K_i G_0 V(\param) + V(\param) G_0 K_i\right] \ket{\phi},
+$$ {#eq-m_vec}
+and
+$$
 \begin{aligned}
-    m_i(\param) & = \bra{\phi'} \left[K_i G_0 V(\param) + V(\param) G_0 K_i\right] \ket{\phi}, \label{eq:m_vec} \\
     M_{ij}(\param) & = \bra{\phi'} [
                        K_i G_0 K_j - K_i G_0 V(\param) G_0 K_j \notag \\
     & \hspace{0.29in} + K_j G_0 K_i - K_j G_0 V(\param) G_0 K_i
-    ] \ket{\phi}. \label{eq:M_mat}
+    ] \ket{\phi}.
 \end{aligned}
-$$
+$$ {#eq-M_mat}
 If the potential $V(\param)$ is linear in the parameter vector $\param$,
 then $\vec{m}$ and $M$
 can be efficiently reconstructed by linear combinations of matrices pre-computed during the training phase of the emulator.
 This results in substantial improvements in CPU time, *e.g.*, for chiral nucleon-nucleon (NN) interactions.
 
-By imposing the stationary condition $\dd \mathcal{K} /\mathup{d} \coeffs = 0$, one then finds
+By imposing the stationary condition $\textup{d} \mathcal{K} /\textup{d} \coeffs = 0$, one then finds
 $\coeffsopt(\param)$ such that $M \coeffsopt = \vec{m}$.
 Given that the optimal $\coeffsopt(\param)$ yields a trial matrix @eq-TritzTrial with an error $\delta K$, we insert $\coeffsopt$ in @eq-LS_identity_beta to obtain an error $(\delta K)^2$.
 The resulting emulator $\mathcal{K}_\star(\param) \equiv \mathcal{K}(\param, \coeffsopt)$ is then
@@ -368,7 +371,7 @@ $$
     \braket{\phi' | \mathcal{K} | \phi} =
     \braket{\phi' | V | \phi} + \frac{1}{2} \vec{m}^\trans M^{-1} \vec{m}.
 $$ {#eq-emulator}
-Equations~\eqref{eq:m_vec}--\eqref{eq:emulator} are the main expressions for emulating scattering observables
+Equations [-@eq-m_vec]--[-@eq-emulator] are the main expressions for emulating scattering observables
 with short-range interactions.
 We extend the implementation to the long-range Coulomb potential in Sec.~\ref{sec:coulomb}.^[
 Emulating the wave function could follow from working out $\ket{\psi(\param)} = \ket{\phi} + G_0 \mathcal{K}_\star(\param)\ket{\phi}$, where again the appropriate boundary conditions are implied by the choice of $G_0$ [@newton2002scattering; @taylor2006scattering].
