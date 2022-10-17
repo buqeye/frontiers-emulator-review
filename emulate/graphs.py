@@ -37,7 +37,7 @@ def setup_rc_params(presentation=False, constrained_layout=True, usetex=True):
         fontsize = 9
     black = "k"
 
-    mpl.rcdefaults()  # Set to defaults
+    # mpl.rcdefaults()  # Set to defaults
 
     # mpl.rc("text", usetex=True)
     mpl.rcParams["font.size"] = fontsize
@@ -67,9 +67,10 @@ def setup_rc_params(presentation=False, constrained_layout=True, usetex=True):
     mpl.rcParams["ytick.major.size"] = 3.9
 
     ppi = 72  # points per inch
-    # dpi = 150
     mpl.rcParams["figure.titlesize"] = fontsize
-    mpl.rcParams["figure.dpi"] = 150  # To show up reasonably in notebooks
+
+    # Would prefer to set DPI with Quarto parameters, but it is not working
+    mpl.rcParams["figure.dpi"] = 1000  # To show up reasonably in notebooks
     mpl.rcParams["figure.constrained_layout.use"] = constrained_layout
     # 0.02 and 3 points are the defaults:
     # can be changed on a plot-by-plot basis using fig.set_constrained_layout_pads()
@@ -100,6 +101,17 @@ def setup_rc_params(presentation=False, constrained_layout=True, usetex=True):
 
     mpl.rcParams["hatch.linewidth"] = 0.5
 
+    # Turn off interactive mode: only show plots when we explicitly call for it
+    # This allows us to show the plotting source code in html mode, but exclude it for pdf.
+    mpl.rcParams["interactive"] = False
+
     # bbox = 'tight' can distort the figure size when saved (that's its purpose).
     # mpl.rc('savefig', transparent=False, bbox='tight', pad_inches=0.04, dpi=350, format='png')
-    mpl.rc("savefig", transparent=False, bbox=None, dpi=400, format="png")
+    mpl.rc(
+        "savefig",
+        transparent=False,
+        bbox="standard",
+        pad_inches=0,
+        dpi=400,
+        format="pdf",
+    )
