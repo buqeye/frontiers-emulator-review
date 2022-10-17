@@ -3,3 +3,9 @@ $$
 {{< include mymacros.tex >}}
 $$
 :::
+
+::: {.content-hidden when-format="pdf"}
+$$
+\renewcommand{\identity}{\mathbb{1}}
+$$
+:::
