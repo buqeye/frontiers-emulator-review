@@ -70,6 +70,7 @@ bibliography:
   - references.bib
   - emulator_refs.bib
   - bayesian_refs.bib
+csl: phys_rev_c.csl
 
 format:
   html:
@@ -80,7 +81,7 @@ format:
     fig-width: 3.4
     fig-height: 3
     fig-dpi: 900
-    fig-format: pdf
+    fig-format: png
     crossref:
       eq-prefix: "Eq."
       fig-prefix: "Figure"
