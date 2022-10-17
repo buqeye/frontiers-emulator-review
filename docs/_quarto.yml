@@ -77,6 +77,10 @@ format:
     top-level-division: section
     reference-location: margin
     citation-location: margin
+    fig-width: 3.4
+    fig-height: 3
+    fig-dpi: 900
+    fig-format: pdf
     crossref:
       eq-prefix: "Eq."
       fig-prefix: "Figure"
@@ -92,6 +96,11 @@ format:
     keep-tex: true
     pdf-engine: pdflatex
     latex-auto-install: false # Faster if false. Change to true for publishing
+    fig-pos: "tb"
+    fig-width: 3.4
+    fig-height: 3
+    fig-dpi: 1000
+    fig-format: png
     include-in-header:
       - preamble.tex
       - mymacros.tex
@@ -114,5 +123,7 @@ format:
       eq-prefix: "Eq."
       fig-prefix: "Figure"
       sec-prefix: "Section"
+    language:
+      crossref-ch-prefix: "Section"
     template-partials:
       - partials/title.tex
