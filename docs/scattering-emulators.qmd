@@ -13,6 +13,8 @@ jupyter: python3
 {{< include macros.qmd >}}
 :::
 
+{{< include _code_preamble.qmd >}}
+
 
 In this section we describe the various MOR emulators one could construct for quantum scattering systems.
 Throughout, we note the relationship between the variational principles from which emulators have been constructed in recent works.
@@ -316,7 +318,7 @@ The energy dependence is implicit in what follows.
 We stress that using the $K$ matrix is just a convenient choice. In fact, $T^{(\pm)}$ can be emulated by imposing the associated boundary conditions on $G_0$.
 Although the @eq-LS has the formal solution
 $$
-    K = \left(\mathbb{1} - V G_0 \right)^{-1} V,
+    K = \left(\identity - V G_0 \right)^{-1} V,
 $$ {#eq-LS_formal_sol}
 evaluating @eq-LS_formal_sol in a given basis can be prohibitively slow for large-scale Monte Carlo sampling because of the fine (quadrature) grids typically necessary to obtain high-accuracy results. 
 
@@ -453,20 +455,7 @@ It is known that the Schwinger variational principle yields a $K$ matrix that is
 
 ::: {.content-hidden when-format="pdf"}
 
-
 ## Example
-
-```{python}
-#| echo: false
-#| output: false
-%load_ext autoreload
-%autoreload 2
-%matplotlib inline
-
-from IPython.display import display, Markdown
-from emulate import jupyter_show_class_method, markdown_class_method
-```
-
 
 ```{python}
 import numpy as np
@@ -697,6 +686,7 @@ ax.legend()
 ax.set_xlabel("$r$")
 ax.set_ylabel("$u(r)$")
 ax.set_title("Radial wave functions for the Minnesota potential")
+plt.show()
 ```
 
 
@@ -831,6 +821,7 @@ ax = axes.ravel()[1]
 ax.semilogy(r[r_mask], np.abs(psi_exact[r_mask]-psi_valid[r_mask]), label="Abs. Residual")
 ax.set_xlabel("$r$")
 ax.legend()
+plt.show()
 ```
 
 ```{python}

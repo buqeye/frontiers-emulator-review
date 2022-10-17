@@ -15,18 +15,10 @@ jupyter: python3
 :::
 
 
+{{< include _code_preamble.qmd >}}
+
+
 ::: {.content-hidden when-format="pdf"}
-```{python}
-#| echo: false
-#| output: false
-%load_ext autoreload
-%autoreload 2
-%matplotlib inline
-
-from IPython.display import display, Markdown
-from emulate import jupyter_show_class_method, markdown_class_method
-```
-
 ```{python}
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,6 +37,20 @@ setup_rc_params()
 sns.set_palette('pastel')
 ```
 :::
+
+
+```{python}
+print(plt.rcParams['savefig.dpi'])
+print(plt.rcParams['figure.dpi'])
+print(plt.rcParams['figure.figsize'])
+print(plt.rcParams["figure.constrained_layout.use"])
+print(plt.rcParams["figure.constrained_layout.h_pad"])
+print(plt.rcParams["figure.constrained_layout.w_pad"])
+print(plt.rcParams["savefig.pad_inches"])
+print(plt.rcParams["savefig.bbox"])
+```
+
+
 
 This notebook describes the inner workings of the eigen-emulator and provides examples of its use.
 
@@ -79,6 +85,8 @@ $$
 $$
 Thus $\subspace{E}$ is an approximation to the energy.
 
+
+See @fig-harm-osc for a visual, or @sec-perturbed-oscillator-example.
 
 ::: {.content-hidden when-format="pdf"}
 
@@ -181,12 +189,11 @@ wf_train = osc_wfs @ emulator.X
 
 
 ```{python}
-#| label: fig-harm-osc
-#| fig-cap: "A perturbed harmonic oscillator potential and its ground state wave function for various parameter values."
 #| code-summary: Code to plot the potential and wave functions
 #| code-fold: true
+#| output: false
 
-fig, axes = plt.subplots(len(p_train)//2, 2+(len(p_train)%2), figsize=(4, 3.5), sharey=True, sharex=True)
+fig, axes = plt.subplots(len(p_train)//2, 2+(len(p_train)%2), figsize=(4, 3.4), sharey=True, sharex=True)
 
 V0 = oscillator_potential(r_grid, mass=mass, omega=1)
 for i, p_i in enumerate(p_train):
@@ -206,11 +213,24 @@ for ax in axes[-1]:
     ax.set_xticks([0, 1, 2, 3])
 ax.set_ylim(-6, 6)
 fig.suptitle("Wave Functions in Oscillator + Gaussian Perturbed Potential")
+# fig.savefig("test")
+```
+::: 
+
+```{python}
+#| label: fig-harm-osc
+#| fig-cap: "A perturbed harmonic oscillator potential and its ground state wave function for various parameter values."
+#| echo: false
 plt.show()
 ```
 
 
+
+
 See @fig-harm-osc for a visual, or @sec-perturbed-oscillator-example.
+
+
+::: {.content-hidden when-format="pdf"}
 
 
 ```{python}
@@ -219,6 +239,9 @@ from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
 
 
 ```{python}
+#| code-summary: Code to plot the RBM emulator wave functions
+#| code-fold: true
+#| output: false
 fig, ax = plt.subplots(figsize=(4, 2))
 ax.plot(r_grid, wf_train[:, 0], label='Train', **BASIS_KWARGS)
 ax.plot(r_grid, wf_train, **BASIS_KWARGS)
@@ -232,12 +255,29 @@ for i in range(3):
     ax.plot(r_grid, osc_wfs @ emulator.emulate_wave_function(p_valid[i]), label=label_pred, **PRED_KWARGS)
 ax.set_xlabel(r"$r$")
 ax.set_ylabel(r"$u_0(r)$")
-ax.set_title("Emulated Radial Wave Functions")
+ax.set_title("RBM Emulated Radial Wave Functions")
 ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
-# fig.savefig("perturbed_oscillator_efficient.png")
+```
+::: 
+
+```{python}
+#| label: fig-rbm-eigen-emulator-wavefunctions
+#| fig-cap: "Wave functions constructed via a RBM-based eigen-emulator"
+#| echo: false
+plt.show()
+```
+
+```{python}
+import ipywidgets as widgets
+from IPython.display import display
+
+w = widgets.IntSlider()
+display(w)
 ```
 
 
+
+::: {.content-hidden when-format="pdf"}
 ```{python}
 ncsm = NCSMEmulator('NCSM', H0=H0, H1=H1)
 ncsm.fit(len(p_train))
@@ -263,7 +303,7 @@ ax.set_xlabel(r"$r$")
 ax.set_ylabel(r"$u_0(r)$")
 ax.set_title("Emulated Radial Wave Functions (NCSM)")
 ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
-# fig.savefig("perturbed_oscillator_ncsm.png")
+plt.show()
 ```
 
 
@@ -285,7 +325,7 @@ ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
 ax.set_xlabel(r"$r$")
 ax.set_title("Wave Function Residuals")
 ax.axhline(0, 0, 1, c='lightgrey', lw=0.8, zorder=0)
-# fig.savefig("perturbed_oscillator_ground_state_wave_function_residuals.png")
+plt.show()
 ```
 
 
@@ -294,17 +334,18 @@ fig, ax = plt.subplots(figsize=(4, 2))
 for i in range(3):
     ax.semilogy(
         r_grid,
-        np.abs(osc_wfs @ (emulator.exact_wave_function(p_valid[i])-emulator.emulate_wave_function(p_valid[i]))),
-        ls='-', label='Efficient' if i == 0 else None
+        np.abs(osc_wfs @ (ncsm.exact_wave_function(p_valid[i])-ncsm.emulate_wave_function(p_valid[i]))),
+        ls='--', label='NCSM' if i == 0 else None
     )
     ax.semilogy(
         r_grid,
-        np.abs(osc_wfs @ (ncsm.exact_wave_function(p_valid[i])-ncsm.emulate_wave_function(p_valid[i]))),
-        ls='--', label='NCSM' if i == 0 else None
+        np.abs(osc_wfs @ (emulator.exact_wave_function(p_valid[i])-emulator.emulate_wave_function(p_valid[i]))),
+        ls='-', label='RBM' if i == 0 else None
     )
 ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
 ax.set_xlabel(r"$r$")
 # ax.set_title("Wave Function Absolute Residuals")
+plt.show()
 ```
 
 
@@ -321,10 +362,11 @@ E_pred_gp, E_std_gp = gp.predict(p_valid, return_std=True)
 fig, ax = plt.subplots(figsize=(4, 2))
 ax.semilogy(np.arange(len(E_full)), np.abs(E_pred_gp-E_full), label='GP', ls='-.')
 ax.semilogy((E_pred_ncsm-E_full), label='NCSM', ls='--')
-ax.semilogy((E_pred-E_full), label='Efficient', ls='--')
-ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
+ax.semilogy((E_pred-E_full), label='RBM', ls='--')
+ax.legend(loc='upper left', bbox_to_anchor=(1.03, 1), borderaxespad=0)
 ax.set_title("Ground-State Energy Residuals")
 ax.set_xlabel("Validation Index")
+plt.show()
 ```
 
 
@@ -365,7 +407,7 @@ ax.plot(p0_valid_1d, abs_residual_1d, label=r"$|\Delta E|$", **FULL_KWARGS)
 ax.plot(p0_valid_1d, stdv_E_valid_1d * np.average(abs_residual_1d/stdv_E_valid_1d), label="Error Emulator", **PRED_KWARGS)
 ax.set_xlabel("$a_0$ Parameter Value")
 ax.legend()
-# fig.savefig("bound_state_error_emulator.png")
+plt.show()
 ```
 
 
@@ -403,11 +445,11 @@ R_pred_gp, R_std_gp = gp_op.predict(p_valid, return_std=True)
 fig, ax = plt.subplots(figsize=(4, 2))
 ax.semilogy(np.arange(len(R_full)), np.abs(R_pred_gp-R_full), label='GP', ls='-.')
 ax.semilogy(np.abs(R_pred_ncsm-R_full), label='NCSM', ls='--')
-ax.semilogy(np.abs(R_pred-R_full), label='Efficient')
+ax.semilogy(np.abs(R_pred-R_full), label='RBM')
 ax.legend(loc='upper left', bbox_to_anchor=(1.03,1), borderaxespad=0)
 ax.set_title("Ground-State Radius Residuals")
 ax.set_xlabel("Validation Index")
-# fig.savefig("perturbed_oscillator_ground_state_radius_residuals.png")
+plt.show()
 ```
 
 
