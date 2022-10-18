@@ -1,0 +1,205 @@
+
+
+
+
+```{python}
+%load_ext autoreload
+%autoreload 2
+%config InlineBackend.print_figure_kwargs = {"bbox_inches": None, "facecolor": "w"}
+%matplotlib inline
+```
+
+```{python}
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, ConstantKernel as C
+
+from emulate import convert_from_r_to_ho_basis
+from emulate import leggauss_shifted
+from emulate import ho_energy, ho_radial_wf
+from emulate import setup_rc_params
+from emulate import EigenEmulator, NCSMEmulator, BoundStateOperator
+
+setup_rc_params(interactive=True, constrained_layout=False)
+sns.set_palette('pastel')
+```
+
+
+
+```{python}
+def wave_function(x):
+    return np.sinc(x) * np.sqrt(x)
+
+def matrix_high_fidelity(x, xp):
+    scale = 5
+    M = np.exp(-(x**2 + xp**2)**2/scale**4) + np.exp(-(x - xp)**2/2)
+    M /= x + 5
+    return M
+```
+
+
+```{python}
+x = np.linspace(0, 10, 401)
+H = matrix_high_fidelity(x[:, None], x)
+psi = wave_function(x)
+
+linewidth = 0.8
+```
+
+```{python}
+# fig, ax = plt.subplots(figsize=(1, 1))
+fig = plt.figure(figsize=(1, 1), layout="tight", frameon=False)
+ax = plt.gca()
+ax.matshow(H, cmap=mpl.cm.Spectral_r)
+ax.axis("off")
+fig.tight_layout(pad=0.1, h_pad=0, w_pad=0)
+# ax.margins(0.1, 0.1)
+fig.savefig("test_fig/highfidelity")
+```
+
+```{python}
+# fig, ax = plt.subplots(figsize=(1, 1), constrained_layout=True)
+# fig, ax = plt.subplots(figsize=(1, 1), layout=None)
+fig = plt.figure(1, figsize=(0.2, 1), layout="tight", frameon=False, facecolor='w', edgecolor='w', dpi=1000)
+ax = plt.gca()
+
+ax.plot(psi[::-1], x, c="k", lw=linewidth, clip_on=False)
+ax.axis("off")
+ax.set_xticks([])
+ax.set_yticks([])
+# ax.margins(x=0, y=0)
+# fig.set_constrained_layout_pads(w_pad=10, h_pad=100, hspace=10, wspace=10)
+# plt.tight_layout(pad=-10)
+# plt.subplots_adjust(top = 1, bottom = 0, right = 1, left = 0, 
+#             hspace = 0, wspace = 0)
+ax.margins(0.1, 0.01)
+# ax.margins(0)
+fig.tight_layout(pad=0)
+# fig.tight_layout(pad=0, h_pad=0, w_pad=0)
+# fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+fig.savefig("test_fig/wave_function.png", bbox_inches=None)
+```
+
+
+
+```{python}
+# fig, ax = plt.subplots(figsize=(0.3, 1))
+fig = plt.figure(figsize=(0.3, 1), frameon=False, facecolor='w', edgecolor='w')
+ax = plt.gca()
+
+offset = np.max(psi) + 0.1
+ax.plot(psi[::-1], x, lw=linewidth)
+ax.plot(psi[::-1] + offset, x, lw=linewidth)
+ax.plot(psi[::-1] + 2 * offset, x, lw=linewidth)
+ax.axis("off")
+ax.margins(0.02, 0.01)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/basis")
+```
+
+
+```{python}
+# fig, ax = plt.subplots(figsize=(0.8, 0.4))
+fig = plt.figure(figsize=(0.6, 0.4), frameon=False, facecolor='w', edgecolor='w')
+ax = plt.gca()
+
+offset = np.max(psi) + 0.1
+ax.plot(x, psi, lw=linewidth, clip_on=False)
+ax.plot(x, psi - offset, lw=linewidth, clip_on=False)
+ax.plot(x, psi - 2 * offset, lw=linewidth, clip_on=False)
+ax.axis("off")
+ax.margins(0.01, 0.1)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/basis_t")
+```
+
+
+```{python}
+fig = plt.figure(figsize=(0.4, 0.4), frameon=False, facecolor='w', edgecolor='w')
+
+x_pts = 3 * [0, 1, 2]
+y_pts = 3 * [0] + 3 * [1] + 3 * [2]
+
+ax = plt.gca()
+for i in range(len(x_pts)):
+    ax.plot(x_pts[i], y_pts[i], ls="", marker="s", c=f"C{i}", markersize=7, clip_on=False)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.axis("off")
+ax.margins(0.09, 0.09)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/projected_matrix")
+```
+
+```{python}
+fig = plt.figure(figsize=(0.1, 0.4), frameon=False, facecolor='w', edgecolor='w')
+ax = plt.gca()
+for i in range(3):
+    ax.plot([0], -i, ls="", marker=['o', 'D', 'v'][i], c=f"C{i}", markersize=4, clip_on=False)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.axis("off")
+ax.margins(0.01, 0.1)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/coefficients")
+```
+
+
+
+```{python}
+import matplotlib.patheffects as mpe
+
+fig = plt.figure(figsize=(0.7, 0.12), frameon=False, facecolor='w', edgecolor='w')
+
+ax = plt.gca()
+ax.plot([0, 1], [0, 0], lw=7, solid_capstyle='round',
+    path_effects=[mpe.withStroke(linewidth=8, foreground="0.1")]
+)
+ax.set_xticks([])
+ax.set_yticks([])
+ax.axis("off")
+ax.margins(0.1, 0.05)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/time_long")
+```
+
+
+```{python}
+from matplotlib.patches import Rectangle, FancyBboxPatch
+from matplotlib.collections import PatchCollection
+fig = plt.figure(figsize=(0.6, 0.12), frameon=False, facecolor='w', edgecolor='w')
+
+ax = plt.gca()
+# ax.plot([0, 1], [0, 0],
+#     dash_capstyle="butt",
+#     linestyle=(0, (0.4, 0.4)),
+#     lw=7,
+#     zorder=1.5,
+#     # path_effects=[mpe.Stroke(linewidth=2.6, foreground="k"), mpe.Normal()],
+#     path_effects=[mpe.withStroke(linewidth=8, foreground="0.1")],
+# )
+
+
+
+boxes = [FancyBboxPatch((2*i, 0), 1, 1, boxstyle="Round, pad=0.1")
+                  for i in range(8)]
+
+# Create patch collection with specified colour/alpha
+pc = PatchCollection(boxes, facecolor="C0", lw=0.4,
+                    edgecolor="0.1")
+
+# Add collection to axes
+ax.add_collection(pc)
+
+
+ax.set_xticks([])
+ax.set_yticks([])
+ax.axis("off")
+ax.margins(0.012, 0.05)
+fig.tight_layout(pad=0)
+fig.savefig("test_fig/time_short")
+```
