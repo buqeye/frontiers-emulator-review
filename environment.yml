@@ -5,7 +5,8 @@ channels:
 dependencies:
   - jupyter=1.0.0
   - jupyter_nbextensions_configurator=0.4.1
-  - matplotlib=3.5.3
+  - matplotlib=3.6.1
+  - matplotlib-inline>=0.1.6
   - nbconvert=5.6.1
   - nbclient==0.6.6
   - numpy=1.23.1
