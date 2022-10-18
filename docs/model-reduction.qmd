@@ -21,6 +21,10 @@ license: "CC BY"
 
 ## What is model reduction?
 
+![Illustration of offline-online compositions for fast & accurate emulators. Inspired by Figure~1 in Ref.[]](offline_online.png){fig.pos='tb'}
+
+![Illustration of an RBM. Inspired by Figure~1 in Ref.[]](rbm.png){fig.pos='tb'}
+
 The holy grail of complex physical simulations is an *emulator* that captures most important features of the high-fidelity simulator, but is much cheaper to evaluate.
 The field of model reduction provides a set of tools for constructing such emulators, or reduced-order models, in a variety of contexts.
 
@@ -157,7 +161,7 @@ $$
 $$
 where $\delta\coeff_i$ are arbitrary parameters, not related to $\coeff_i$.
 The $\delta\coeff_i$ will play the same role as those in Eq.~\eqref{eq:action_stationary_ansatz}, namely as a bookkeeping method for determining the set of equations that are equivalently zero.
-By enforcing that the residuals against these test functions vanish for arbitrary $\delta\coeff_i$, the bracketed expression in 
+By enforcing that the residuals against these test functions vanish for arbitrary $\delta\coeff_i$, the bracketed expression in
 $$
     \delta\coeff_i \Bigl[\int_{\Omega} \dd{\Omega}  \phi_i  D(X\coeffs_\star) +  \int_{\Gamma} \dd{\Gamma} \bar\phi_i  B(X\coeffs_\star)
     \Bigl]= 0,
