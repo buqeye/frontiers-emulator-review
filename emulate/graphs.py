@@ -30,7 +30,9 @@ PRED_KWARGS = dict(
 )
 
 
-def setup_rc_params(presentation=False, constrained_layout=True, usetex=True):
+def setup_rc_params(
+    presentation=False, constrained_layout=True, usetex=True, interactive=False
+):
     if presentation:
         fontsize = 11
     else:
@@ -103,15 +105,17 @@ def setup_rc_params(presentation=False, constrained_layout=True, usetex=True):
 
     # Turn off interactive mode: only show plots when we explicitly call for it
     # This allows us to show the plotting source code in html mode, but exclude it for pdf.
-    mpl.rcParams["interactive"] = False
+    mpl.rcParams["interactive"] = interactive
 
     # bbox = 'tight' can distort the figure size when saved (that's its purpose).
     # mpl.rc('savefig', transparent=False, bbox='tight', pad_inches=0.04, dpi=350, format='png')
+
+    # Quarto handles this
     mpl.rc(
         "savefig",
         transparent=False,
         bbox="standard",
         pad_inches=0,
-        dpi=400,
-        format="pdf",
+        dpi=1000,
+        format="png",
     )

@@ -17,7 +17,7 @@ jupyter: python3
 
 
 In this section we describe the various MOR emulators one could construct for quantum scattering systems.
-Throughout, we note the relationship between the variational principles from which emulators have been constructed in recent works.
+Throughout, we note the relationship between the variational principles from which emulators have been constructed in recent works [@Furnstahl:2020abp; @Drischler:2021qoy; @Zhang:2021jmi; @Melendez:2021lyq; @KVP_vs_NVP:2022].
 We also describe how each of the results from VPs could instead be derived from Galerkin projections.
 
 
@@ -62,7 +62,7 @@ $$
     \mathcal{K}[\psi] = K - \frac{2\mu}{q} \braket{\psi | [H - E] | \psi}
 \end{aligned}
 $$ {#eq-kvp}
-where $K$ is the on-shell reactance matrix, $\mu$ is the reduced mass, and $E = q^2/2\mu$.
+where $K$ is the on-shell reactance matrix, $\mu$ is the reduced mass, and $E = q^2/2\mu$ [@Furnstahl:2020abp; @Drischler:2021qoy].
 The functional yields $\mathcal{K}[\psi] = K$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K^2)$.
 Rather than finding a wave function $\ket{\psi}$ that satisfies @eq-schrodinger, our task now has now changed to finding a wave function that makes @eq-kvp stationary.
 
@@ -76,7 +76,7 @@ where $\{\ket{\psi_i}\}$ is the exact solution to @eq-schrodinger for a choice o
 
 Inserting @eq-trial_ansatz_kohn into @eq-kvp yields
 $$
-\mathcal{K} = \beta_i K_i - \frac{1}{2} \beta_i \dU_{ij}\beta_j
+\mathcal{K}[\psitrial] = \beta_i K_i - \frac{1}{2} \beta_i \dU_{ij}\beta_j
 $$ {#eq-kvp_reduced}
 where we have defined
 $$
@@ -152,22 +152,26 @@ $$
 $$
 -->
 
-The efficient evaluation of $\Delta \widetilde U$ across a range of $\param$ values is critical to the applicability of the emulator.
+The efficient evaluation of $\dU$ across a range of $\param$ values is critical to the applicability of the emulator.
 This is achieved due to the affine dependence of $V$ on the parameters $\param$:
 $$
 \begin{aligned}
-    V(\param) = V^0 + \sum_{i=1}^{N_\theta} \theta_i V^1_i,
+    V(\param) = V^0 + \sum_{i=1}^{\nbasis} \theta_i V^1_i,
 \end{aligned}
 $$
 which implies
 $$
 \begin{aligned}
-    \dU(\param) = \dU^0 + \sum_{i=1}^{N_\theta} \theta_i \Delta \widetilde {U}^1_i,
+    \dU(\param) = \dU^0 + \sum_{i=1}^{\nbasis} \theta_i \Delta \widetilde {U}^1_i,
 \end{aligned}
-$$
+$$ {#eq-dU0_dU1}
 where the superscripts $0$ and $1$ refer to parameter-independent and -dependent terms, respectively.
 This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
-The value of $\Delta \widetilde U(\param)$ at any new parameter value is then easily reconstructed from each term.
+The value of $\dU(\param)$ at any new parameter value is then easily reconstructed from each term.
+
+By considering @eq-dU0_dU1, the emulation process can then be separated into two parts: the offline and online stage.
+In the offline stage the emulator is trained and @eq-delta_u_tilde is calculated.
+The online stage is then where we obtain the emulator predictions, $\ie$, evaluate @eq-dU0_dU1 for a given set of $\param$ and solve for $\kvpweights$ using @eq-coeff_solution.
 
 
 ### Removing the Lagrange multiplier {#sec-kohn-no-lagrange}
@@ -196,17 +200,27 @@ where
 $$
 M_{ij} = \dU_{ij} - \frac{1}{\nbasis} \sum_{k} \left[\dU_{ik} + \dU_{kj}\right].
 $$
-This formulation requires a matrix solve of one fewer dimension than @eq-coeff_solution and @eq-kohn-solution-no-lagrange tends to be a better conditioned system to solve as well.
+This formulation requires solving a matrix of one fewer dimension than @eq-coeff_solution and @eq-kohn-solution-no-lagrange tends to be a better conditioned system to solve as well.
 
 
 ### Generalized Kohn Variational Principle {#sec-kohn-general}
-
+The KVP function, @eq-kvp, can be extended to include arbitrary boundary conditions. We define $\genkvp$ as a general functional for a general scattering matrix L,
 $$
 \begin{aligned}
-    \mathcal{L}[\psi] = L - \frac{2\mu}{q} \braket{\psi | [H - E] | \psi}
+    \mathcal{L}[\psi] = L - \frac{2\mu}{q \, \mathrm{det} \umatrix} \braket{\psi | [H - E] | \psi},
 \end{aligned}
 $$ {#eq-kvp-general}
+where $\umatrix$ are non-singular matrices used to parametrize the asymptotic boundary conditions [@PhysRevA.40.6879; @Drischler:2021qoy; @KVP_vs_NVP:2022].
 
+The general KVP functional may not always provide a stationary approximation. 
+The consequence is spurious singularites known as Kohn (Schwartz) anomalies [@PhysRev.124.1468; @nesbet1980variational]. 
+These anomalies appear at random energies and depend on the parameters $\param$ used to train the emulator in the offline stage and the evaluation set used in the online stage. 
+Using @eq-kvp-general one can evaluate different KVPs for different boundary conditions and use the predictions to detect any singularities.
+
+Drischler et al. [@Drischler:2021qoy] proposed using multiple emulators evaluated at different boundary conditions as a way to mitigate these anomalies.
+The process involves calculating an estimated (mixed) $S$ matrix from a weighted sum of averages using KVP pairs that pass a consistency check.
+This new estimated $S$ matrix will now be the emulator prediction.
+For more information see [@Drischler:2021qoy; @KVP_vs_NVP:2022].
 
 ### Coupled Systems {#sec-kohn-coupled}
 
