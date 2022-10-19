@@ -108,7 +108,9 @@ $$
     \end{pmatrix}.
 \end{aligned}
 $$ {#eq-coeff_solution}
-The fact that @eq-coeff_solution is a linear system means that if the $\nbasis$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+The fact that @eq-coeff_solution is a linear system means that if $N_b$, the number of basis functions, is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+
+As the basis size $N_b$ increase, the matrix $\dU$ becomes increasingly ill-conditioned, which is due to the collinearity of the basis states. A way to mitigate this issue is through the use of regularization techniques. Furnstahl et al. [@Furnstahl:2020abp] proposed adding a small regularization parameter known as a nugget to the diagonal.
 
 <!--
 Everything we have done thus far is representation-independent.
