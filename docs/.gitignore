@@ -5,5 +5,6 @@
 /_output/
 libs/
 *.ipynb
+/site_libs/
 
 BUQEYE-Guide-to-Emulators-in-Nuclear-Physics.tex
