@@ -108,7 +108,9 @@ $$
     \end{pmatrix}.
 \end{aligned}
 $$ {#eq-coeff_solution}
-The fact that @eq-coeff_solution is a linear system means that if the $\nbasis$ number of basis functions is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+The fact that @eq-coeff_solution is a linear system means that if $N_b$, the number of basis functions, is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+
+As the basis size $N_b$ increase, the matrix $\dU$ becomes increasingly ill-conditioned, which is due to the collinearity of the basis states. A way to mitigate this issue is through the use of regularization techniques. Furnstahl et al. [@Furnstahl:2020abp] proposed adding a small regularization parameter known as a nugget to the diagonal.
 
 <!--
 Everything we have done thus far is representation-independent.
@@ -258,6 +260,31 @@ For the diagonal channels, the test functions are chosen to have the same outgoi
 But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$).
 Because the basis of test functions differs from the basis of the trial function, this is instead a Petrov-Galerkin approach.
 The linear equations to be solved are exactly what one would obtain from enforcing stationarity in @eq-kvp_reduced_coupled for each $ss'$ independently.
+
+### Generalizations to the continuum states of the higher-body systems {#sec-higher-body-continuum}
+
+The calculations of few-body continuum states are already computationally expensive, starting with three-body systems. Therefore emulators for these calculations are desirable for enabling efficient model calibrations against experimental measurements, e.g., fixing  modern nucleon interactions based on Chiral effective field theory against nucleon-deuteron scattering data. 
+ 
+The KVP has in fact been applied directly to compute three-nuclon continnum states in nuclear physics, including nucleon-deuteron elastic scatterings below and above the deuteron break-up threshold. Of course, there are other direct ways to perform high-fidelity calculations of three-body continuum states in momentum or coordinate space through Faddeev formalism. Lately, the KVP-based two-body emulator has been generalized to three-identifcal-boson systems, particularly one boson elastic scattering off two-boson bound state below the break-up threshold. For elastic scatterings below or above the break-up treshold, the scattering S-matrix can be estimated via a functional that resembles the KVP functional used in two-body case
+$$
+\begin{aligned}
+ \mathcal{S}[\psi] = S - \frac{i}{3\mathcal{N}^2}  \braket{\psi | [H - E] | \psi} 
+\end{aligned}
+$$ {#eq-three-body-elastic-scattering-KVP-functional}  
+Here, we focus on spinlese particles without any relative angular momenta. $S$ is the S-matrix associated with the corresponding trial wave function $|\psi\rangle$ (note this is the full three-body wave function, NOT the so-called Faddeev component), with the wave function's asymptotic behavior 
+$$
+\begin{aligned}
+\langle {R}_1, {r}_1|\psi\rangle 
+      \overset{R_1\to \infty}{\longrightarrow} \frac{\mathcal{N}}{\sqrt{v} } \frac{u_B({r}_1) }{ r_1 R_1} 
+     \bigl(-e^{-i P R_1} + S\, e^{i P R_1} \bigr) . 
+\end{aligned}
+$$ {#eq-WFbelowbreakupAsym}
+$R_1, r_1$ is one of three different Jacobi coordinates. $v$ is the relative velocity between the scattering particles in the incoming channel, $\mathcal{N}$ the normalization constant that have appeared in @eq-three-body-elastic-scattering-KVP-functional, and $u_B(r)_1$ as the radial wave function of the two-body bound state. 
+
+Following the basic procedure outlined above for two-body emulators, we can perform high-fieldity calculations of $| \psi \rangle$ at various points in the parameter space (e.g., interaction potentials) at the off-line stage, known as snap shots or training calculations. At the on-line stage (emulation), we construct the trial solution to be used in the variational functional as a linear combination of those snapt shots. The same set of the low-dimensional linear equations could be derived for fixing the weights in this linear construction, and the variational functions with these inputs produce accurate results for $S$ matrix at emulation points. This is all straightforward, if we vary only the three-body interaction, while the two-body interaciton is fixed. If the latter is also varied, the two-body bound states at each snap shots could be different among themselves and the linear combination of the snap shots don't have proper asymptotic behavio as in @eq-WFbelowbreakupAsym. As shown in latest work, modifications can be applied to the linear construction to satisfy the condition. The resulted emulator is again a low-dimensional equation system, but the matrix elements lose the affine structure that is a key for fast emulation. Different hyper-reduction approaches could be applied, includig EIM and statistical learning method. In the latest work, we apply the GP to emulate those matrix elements in the parameter space, considering their dependence in the parameters are much smoother, as compared to that of the scattering observable's dependence on those parameters.  
+
+The results for the emulation below the break-up treshold are very encouraging. It should be straight forward to genearlize it to elastic scattering above the break-up threshold. More work needs to be done for generalization to emulating the break-up processes, and even higher-body systems. Of course, proper Fermi statistics, spin and isospin degrees of freeom, and partial waves beyond the s-wave need to be included as well to realize emulation for three-nucleon continuum states.  
+
 
 
 ### Relating Kohn to Galerkin Orthogonality {#sec-kohn-galerkin}
