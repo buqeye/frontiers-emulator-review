@@ -6,7 +6,7 @@
 \usepackage{booktabs}
 \usepackage[table]{xcolor}
 \usepackage{colortbl}
-
+\usepackage{braket}
 
 \graphicspath{ {../} }
 
@@ -29,12 +29,18 @@
 \toprule
 
 % &
-& \multicolumn{2}{c}{Offline Phase} & Online Phase\\
+High-fidelity system  & \multicolumn{2}{c}{Offline Phase} & Online Phase\\
 % \cmidrule(lr){3-4}\cmidrule(lr){5-5}
-\cmidrule(lr){2-3}\cmidrule(lr){4-4}
+\cmidrule(lr){1-1}\cmidrule(lr){2-3}\cmidrule(lr){4-4}
 
 % &
-High-fidelity system & Snapshots & Projection & Emulation \\
+\hspace{0.45in}$H(\theta)\hspace{0.43in}\ket{\psi}\hspace{0.05in}=E\hspace{0.06in}~\ket{\psi}$~
+%\!\!
+&
+\!\!\!\!Snapshots $\psi(\theta_i)$\!\!\!\!\!\!\!\!\!\!
+& Projection
+& Emulation ($E \approx \widetilde E$)
+\\
 
 % Steps
 % &
@@ -54,7 +60,7 @@ E
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{wave_function.png}}}
 \end{bmatrix}
-\!\!
+%\!\!%\!\!
 $
 
 &
@@ -68,7 +74,7 @@ $
 &
 
 $
-\!\!
+\!\!\!\!\!\!
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{basis_t.png}}}
 \end{bmatrix}
@@ -87,13 +93,13 @@ $
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{projected_matrix.png}}}
 \end{bmatrix}
-\!\!
+
 $
 
 &
 
 $
-\!\!
+
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{projected_matrix.png}}}
 \end{bmatrix}
@@ -108,16 +114,21 @@ $
 \vcenter{\hbox{\includegraphics{coefficients.png}}}
 \end{bmatrix}
 \!\!
-$
+$\\
+
+\!\!\!$N_h \times N_h$\hspace{0.75in} & $N_h \times n_b$ & \hspace{0.2in}$n_b \times N_h$\hspace{0.55in}$N_h \times N_h$\hspace{0.3in}$N_h \times n_b$\hspace{0.25in}$n_b \times n_b$ &
+% $n_b \times n_b$\hspace{0.6in}
+All size-$n_b$ operations
+
 \\\midrule
 
 % Time
 % $t$
 % &
 Time:~
-$\vcenter{\hbox{\includegraphics{time_long.png}}}$ per evaluation &
+$\vcenter{\hbox{\includegraphics{time_long.png}}}$ per $\theta$ sample &
 
-$N_b \times \vcenter{\hbox{\includegraphics{time_long.png}}}$
+\!\!\!$n_b \times \vcenter{\hbox{\includegraphics{time_long.png}}}$\!\!\!
 
 &
 
@@ -125,8 +136,9 @@ $\sim \vcenter{\hbox{\includegraphics{time_long.png}}}$
 
 &
 
-Sampling: $\vcenter{\hbox{\includegraphics{time_short.png}}}$
-
+\!\!\!\!%
+Sampling $\theta$: $\vcenter{\hbox{\includegraphics{time_short.png}}}$
+\!\!\!\!%
 \\
 
 \bottomrule
