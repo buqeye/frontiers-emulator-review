@@ -33,6 +33,7 @@ class BaseKohnEmulator:
         r,
         dr,
         q_cm,
+        is_local,
         # inv_mass,
         nugget=0,
         use_lagrange_multiplier=False,
@@ -47,7 +48,7 @@ class BaseKohnEmulator:
         self.n_p = V1.shape[-1]
         self.n_q = len(q_cm)
         self.use_lagrange_multiplier = use_lagrange_multiplier
-        self.is_local = True
+        self.is_local = is_local
 
         self.dU0 = None
         self.dU1 = None
@@ -118,8 +119,8 @@ class BaseKohnEmulator:
 
         self.V0_sub = V0_sub
         self.V1_sub = V1_sub
-        self.dU0 = dU0
-        self.dU1 = dU1
+        self.dU0 = dU0 * self.q_cm[:, None, None]
+        self.dU1 = dU1 * self.q_cm[:, None, None, None]
         self.p_train = p_train
         self.psi_train = psi_train
         self.K_train = K_train
@@ -150,9 +151,12 @@ class BaseKohnEmulator:
 
     def predict(self, p, full_space=False):
         if full_space:
-            return self.predict_wave_function(p)
+            psi, K = self.predict_wave_function(p, return_K=True)
+            return K
+            # return self.predict_wave_function(p)
         else:
-            return self.emulate_wave_function(p)
+            # return self.emulate_wave_function(p)
+            return self.emulate_reactance(p)
 
     def predict_wave_function(self, p, return_K=False):
         raise NotImplementedError("Must implement in a subclass")
@@ -219,12 +223,12 @@ class BaseKohnEmulator:
         if coefficients is None:
             coefficients = self.coefficients(p)
         dU = self.compute_dU(p)
-        return np.sum(coefficients * self.K_train.T, axis=-1) - 0.5 * np.einsum(
+        return np.sum(coefficients * self.K_train.T, axis=-1) + 0.5 * np.einsum(
             "qn,qnm,qm->q",
             coefficients,
             dU,
             coefficients,
-            optimize=self._c_dU_c_opt_path,
+            # optimize=self._c_dU_c_opt_path,
         )
         # return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
         #     "qn,qnm,qm->q", coefficients, dU, coefficients
@@ -244,6 +248,7 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
         dr,
         NVP,
         # inv_mass,
+        is_local,
         ell,
         use_lagrange_multiplier=False,
     ):
@@ -258,6 +263,7 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
             q_cm=NVP.q_cm,
             nugget=nugget,
             # inv_mass=inv_mass,
+            is_local=is_local,
             use_lagrange_multiplier=use_lagrange_multiplier,
         )
 
@@ -290,7 +296,7 @@ class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
         psi = j_q + j_G0_K
 
         if return_K:
-            K_on = np.einsum("ij,ij->i", Sp, K_half)
+            K_on = q_cm * np.einsum("ij,ij->i", Sp, K_half)
             return psi, K_on
         return psi
 
@@ -306,6 +312,7 @@ class SeparableKohnEmulator(BaseKohnEmulator):
         dk,
         q_cm,
         # inv_mass,
+        is_local,
         ell,
         nugget=0,
         use_lagrange_multiplier=False,
@@ -347,6 +354,7 @@ class SeparableKohnEmulator(BaseKohnEmulator):
             r=r,
             dr=dr,
             q_cm=q_cm,
+            is_local=is_local,
             # inv_mass=inv_mass,
             nugget=nugget,
             use_lagrange_multiplier=use_lagrange_multiplier,
@@ -397,7 +405,7 @@ class SeparableKohnEmulator(BaseKohnEmulator):
     def predict_wave_function(self, p, return_K=False):
         self.validate_parameters(p)
         K_half = self.compute_half_on_shell_reactance(p, include_q=False)
-        K = np.sum(self.Sp * K_half, axis=1)
+        K = self.q_cm * np.sum(self.Sp * K_half, axis=1)
 
         r = self.r
         G0_K = (2 / np.pi) * self.G0 * K_half
