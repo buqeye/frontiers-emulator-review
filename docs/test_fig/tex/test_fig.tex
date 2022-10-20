@@ -3,10 +3,13 @@
 \usepackage[OT1]{fontenc}
 \usepackage{graphicx}
 \usepackage{amsmath}
+\usepackage{tabularx}
 \usepackage{booktabs}
 \usepackage[table]{xcolor}
 \usepackage{colortbl}
 \usepackage{braket}
+\usepackage{adjustbox}
+\usepackage{multirow}
 
 \graphicspath{ {../} }
 
@@ -37,14 +40,15 @@ High-fidelity system  & \multicolumn{2}{c}{Offline Phase} & Online Phase\\
 \hspace{0.45in}$H(\theta)\hspace{0.43in}\ket{\psi}\hspace{0.05in}=E\hspace{0.06in}~\ket{\psi}$~
 %\!\!
 &
-\!\!\!\!Snapshots $\psi(\theta_i)$\!\!\!\!\!\!\!\!\!\!
+\!\!\!\!Snapshots $\psi(\theta_i)$\!\!\!\!\!\!\!\!%\!\!
 & Projection
 & Emulation ($E \approx \widetilde E$)
-\\
+\\[2pt]
 
 % Steps
 % &
 
+% \multirow[b]{2}{*}{
 $
 \!\!
 \begin{bmatrix}
@@ -62,17 +66,22 @@ E
 \end{bmatrix}
 %\!\!%\!\!
 $
+% }
 
 &
+
+% \multirow[b]{2}{*}{
 $
 % X =
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{basis.png}}}
 \end{bmatrix}
 $
+% }
 
 &
 
+% \multirow[c]{2}{*}{
 $
 \!\!\!\!\!\!
 \begin{bmatrix}
@@ -93,13 +102,22 @@ $
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{projected_matrix.png}}}
 \end{bmatrix}
-
 $
+% }
 
 &
 
+% \adjustbox{valign=t,minipage=4cm}{%
+% \vspace{-1in}
+% \vspace{-10cm}
+{
+% \vspace{-1in}
+% \rule{0pt}{-1in}
+% \begin{minipage}[t]{\textwidth}
+% test
 $
-
+\begin{aligned}
+\widetilde H(\theta) ~~~~\vec{\beta}~ & = \widetilde E~~\, \vec{\beta} \\
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{projected_matrix.png}}}
 \end{bmatrix}
@@ -108,13 +126,34 @@ $
 \vcenter{\hbox{\includegraphics{coefficients.png}}}
 \end{bmatrix}
 \!\!
-=
+ & =
 \widetilde E
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{coefficients.png}}}
 \end{bmatrix}
+\\
+\phantom{H \vec{\beta} = \widetilde E \vec{\beta}}
 \!\!
-$\\
+\end{aligned}
+% % \rule{0pt}{-1in} 
+$
+}
+% \vspace{10cm}
+% \end{minipage}
+% \vtop{\null\hbox{test}}
+% \raisebox{-\height+\baselineskip}{test}
+
+% \vspace{-1cm}
+% test
+% \vspace{1cm}
+% \begin{tabular}[t]{l} first \\ second \end{tabular}
+% }
+
+% \\
+
+% & & & hi
+
+\\[32pt]
 
 \!\!\!$N_h \times N_h$\hspace{0.75in} & $N_h \times n_b$ & \hspace{0.2in}$n_b \times N_h$\hspace{0.55in}$N_h \times N_h$\hspace{0.3in}$N_h \times n_b$\hspace{0.25in}$n_b \times n_b$ &
 % $n_b \times n_b$\hspace{0.6in}
@@ -128,7 +167,7 @@ All size-$n_b$ operations
 Time:~
 $\vcenter{\hbox{\includegraphics{time_long.png}}}$ per $\theta$ sample &
 
-\!\!\!$n_b \times \vcenter{\hbox{\includegraphics{time_long.png}}}$\!\!\!
+\!\!\!$n_b \times \vcenter{\hbox{\includegraphics{time_long.png}}}$\!%\!\!
 
 &
 
