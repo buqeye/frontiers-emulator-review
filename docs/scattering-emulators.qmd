@@ -499,6 +499,11 @@ It is known that the Schwinger variational principle yields a $K$ matrix that is
 ## Example
 
 ```{python}
+%load_ext autoreload
+%autoreload 2
+%matplotlib inline
+%config InlineBackend.print_figure_kwargs = {"bbox_inches": None, "facecolor": "w"}
+
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -523,12 +528,13 @@ sns.set_palette('pastel')
 
 
 
+
 ```{python}
 #| tags: [parameters]
 
 hbar2_over_2mu = 1
-nugget = 1e-10
-n_train = 10
+nugget = 1e-6
+n_train = 5
 ell = 0
 ```
 
@@ -537,7 +543,7 @@ Create a compound mesh object for Gaussian quadrature needed below.
 ```{python}
 n_intervals = 5
 nodes = np.linspace(0, 10, n_intervals)
-n_points = 20 * np.ones(n_intervals, dtype=int)
+n_points = 40 * np.ones(n_intervals, dtype=int)
 mesh = CompoundMesh(nodes, n_points)
 
 # Use the same mesh for k and r
@@ -549,8 +555,14 @@ r, dr = mesh.x, mesh.w
 
 ```{python}
 
-betas = [2, 3]
-q_cm = np.array([0.1, 1, 2])
+# betas = [2, 3]
+betas = [2, 4]
+# q_cm = np.array([0.5, 1, 2])
+# t_cm = np.arange(1, 100, 0.5)
+# q_cm = t_cm_to_q_cm(t_cm, MN, MN)
+# q_cm = np.linspace(0.1, 2, 101)
+q_cm = np.round(np.arange(0.1, 2.01, 0.01), 2)
+
 f_k = np.array(
     [
         yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
@@ -574,51 +586,165 @@ kohn = SeparableKohnEmulator(
     dk=dk,
     q_cm=q_cm,
     ell=ell,
+    is_local=False,
     nugget=nugget,
-    use_lagrange_multiplier=True,
+    use_lagrange_multiplier=False,
 )
 
-rng = np.random.default_rng(1)
+rng = np.random.default_rng(13)
 params_dimension = len(betas) * (len(betas) + 1) // 2
 # p_train = rng.uniform(-50, 50, (n_train, params_dimension))
 # p_valid = rng.uniform(-50, 50, params_dimension)
 
-p_train = rng.uniform(-5, 5, (n_train, params_dimension))
-p_valid = rng.uniform(-5, 5, params_dimension)
+p_train = 1e2*rng.uniform(-5, 5, (n_train, params_dimension))
+p_valid = 1e2*rng.uniform(-5, 5, params_dimension)
 
 kohn.fit(p_train)
 ```
 
 ```{python}
-fig, ax = plt.subplots(figsize=(3.4, 3))
+n_form_factors = len(f_k)
+V_k_yama = []
+for i in range(n_form_factors):
+    for j in range(i, n_form_factors):
+        if i != j:
+            V_k_yama.append(f_k[i][:, None] * f_k[j] + f_k[j][:, None] * f_k[i])
+        else:
+            V_k_yama.append(f_k[i][:, None] * f_k[j])
+V_k_yama = np.dstack(V_k_yama)
+V_0_yama = np.zeros(V_k_yama.shape[:-1])
 
-u_train = kohn.psi_train * r
-
-u_exact = kohn.predict_wave_function(p_valid) * r
-u_valid = kohn.emulate_wave_function(p_valid) * r
-
-r_mask = r <= 10
-
-ax.plot(r[r_mask], u_exact[0, r_mask], **FULL_KWARGS, label="Exact")
-ax.plot(r[r_mask], u_valid[0, r_mask], **PRED_KWARGS, label="Emulator", c='w')
-for i, q_i in enumerate(q_cm):
-    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", zorder=0)
-    ax.plot(r[r_mask], u_train[i][:, r_mask].T, c=f"C{i}", zorder=0)
-
-    ax.plot(r[r_mask], u_exact[i, r_mask], **FULL_KWARGS)
-    ax.plot(r[r_mask], u_valid[i, r_mask], **PRED_KWARGS)
-
-
-ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
-ax.legend()
-ax.set_xlabel("$r$")
-ax.set_ylabel("$u(r)$")
-ax.set_title("Radial wave functions for the Yamaguchi potential")
-# ax.set_xlim(0, 10)
+newton_yama = NewtonEmulator(
+    V0=V_0_yama,
+    V1=V_k_yama,
+    k=k,
+    dk=dk,
+    q_cm=q_cm,
+    boundary_condition=BoundaryCondition.STANDING,
+    nugget=nugget,
+)
+newton_yama.fit(p_train)
 ```
 
 ```{python}
-u_valid.shape
+K_yama_nvp = newton_yama.predict(p_valid)
+K_yama_kvp = kohn.predict(p_valid)
+K_yama_exact = newton_yama.predict(p_valid, full_space=True)
+K_yama_train = kohn.K_train
+
+phase_yama_nvp = newton_yama.phase_shifts(K_yama_nvp)
+phase_yama_kvp = newton_yama.phase_shifts(K_yama_kvp)
+phase_yama_exact = newton_yama.phase_shifts(K_yama_exact)
+phase_yama_train = newton_yama.phase_shifts(K_yama_train)
+
+fig, axes = plt.subplots(2, 1, figsize=(3.4, 3.5), sharex=True)
+
+ax = axes.ravel()[0]
+ax.plot(q_cm, phase_yama_train[0], **BASIS_KWARGS, label="Basis")
+ax.plot(q_cm, phase_yama_train.T, **BASIS_KWARGS)
+ax.plot(q_cm, phase_yama_exact, **FULL_KWARGS, label="Exact")
+ax.plot(q_cm, phase_yama_nvp, **PRED_KWARGS, label="NVP")
+ax.plot(q_cm, phase_yama_kvp, **PRED_KWARGS, label="KVP")
+ax.set_ylabel("$\delta$ [deg]")
+ax.set_title("Yamaguchi Potential Phase Shifts")
+ax.legend(loc="upper right")
+ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
+# ax.set_ylim(-5, 5)
+
+
+ax = axes.ravel()[1]
+ax.semilogy(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
+ax.semilogy(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP")
+ax.legend()
+ax.set_ylabel("Absolute Residual [deg]")
+ax.set_xlabel(r"$q_{\mathrm{cm}}$ [fm$^{-1}$]")
+
+fig.savefig("figures/phase_shifts_yamaguchi")
+plt.show()
+```
+
+
+```{python}
+def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
+    u_train = psi_train * r
+    u_exact = psi_exact * r
+    u_valid = psi_emulator * r
+
+    u_resid = np.abs(u_exact - u_valid)
+
+    for i, q_i in enumerate(q_cm):
+        max_u_i = max(
+            u_train[i].max(),
+            u_exact[i].max(),
+            u_valid[i].max(),
+        )
+        u_train[i] = u_train[i] / max_u_i
+        u_exact[i] = u_exact[i] / max_u_i
+        u_valid[i] = u_valid[i] / max_u_i
+
+
+    offset = -2.2
+    y_ticks = []
+
+    fig, axes = plt.subplots(2, 1, figsize=(3.4, 3.5), sharex=True)
+    ax = axes.ravel()[0]
+
+    ax.plot(r, u_train[0, 0, :], **BASIS_KWARGS, label="Basis")
+    ax.plot(r, u_exact[0], **FULL_KWARGS, label="Exact")
+    ax.plot(r, u_valid[0], **PRED_KWARGS, label="Emulator", c='w')
+    for i, q_i in enumerate(q_cm):
+        y_i = i * offset
+        y_ticks.append(y_i)
+        ax.axhline(y_i, 0, 1, c='k', lw=0.8, zorder=-1)
+        # ax.plot(r[r_mask], u_train[i, 0].T + i * offset, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", zorder=0)
+        ax.plot(r, u_train[i].T + y_i, **BASIS_KWARGS)
+
+        ax.plot(r, u_exact[i] + y_i, **FULL_KWARGS)
+        ax.plot(r, u_valid[i] + y_i, **PRED_KWARGS)
+        # ax.text(-0.2, y_i-0.3, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="left", va="top", bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}"))
+        ax.text(-0.65, y_i, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="right", va="center",
+        bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}", lw=0.5),
+        fontsize=6)
+
+
+    ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
+    ax.legend(loc="upper right")
+    # ax.set_xlabel("$r$")
+    # ax.set_ylabel("$u(r)$")
+    ax.set_yticks(y_ticks)
+    ax.set_yticklabels([None for _ in y_ticks])
+    # ax.set_title("Radial wave functions for the Yamaguchi potential")
+
+    ax = axes.ravel()[1]
+    for i, q_i in enumerate(q_cm):
+        ax.semilogy(r, u_resid[i], label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ls=["-", "--", ":"][i])
+    ax.set_xlabel("$r$")
+    ax.set_ylabel(r"Abs.\ Residual")
+    ax.legend()
+    # ax.set_xlim(0, 10)
+    return fig, axes
+```
+
+
+
+```{python}
+psi_train_yama = kohn.psi_train
+psi_exact_yama = kohn.predict_wave_function(p_valid)
+psi_valid_yama = kohn.emulate_wave_function(p_valid)
+
+r_mask = r <= 10
+q_mask = np.isin(q_cm, [0.5, 1,  2])
+fig, axes = plot_wave_functions(
+    r=r[r_mask],
+    psi_emulator=psi_valid_yama[q_mask][..., r_mask],
+    psi_exact=psi_exact_yama[q_mask][..., r_mask],
+    psi_train=psi_train_yama[q_mask][..., r_mask],
+    q_cm=q_cm[q_mask]
+)
+axes[0].set_title("Yamaguchi Radial Wave Functions")
+
+fig.savefig("figures/wave_functions_yamaguchi")
+plt.show()
 ```
 
 
@@ -636,12 +762,12 @@ from emulate.utils import (
     minnesota_potential_momentum_1S0,
 )
 
-n_intervals = 15
-mesh = CompoundMesh(
-    np.linspace(0, 20, n_intervals), 50 * np.ones(n_intervals, dtype=int)
-)
-r, dr = mesh.x, mesh.w
-k, dk = mesh.x, mesh.w
+# n_intervals = 5
+# mesh = CompoundMesh(
+#     np.linspace(0, 20, n_intervals), 20 * np.ones(n_intervals, dtype=int)
+# )
+# r, dr = mesh.x, mesh.w
+# k, dk = mesh.x, mesh.w
 
 # And parameters for the potentials & solvers
 kappa_r = 1.487
@@ -652,8 +778,9 @@ v_0r = 200.0
 v_0s = -91.85
 v_0t = -178.0
 
-t_cm = np.array([50])
-q_cm = t_cm_to_q_cm(t_cm, MN, MN)
+# t_cm = np.array([50])
+# t_cm = np.arange(1, 100, 0.5)
+# q_cm = t_cm_to_q_cm(t_cm, MN, MN)
 hbar2_over_2mu = hbar_c**2 / MN
 
 # Given potentials from the above parameters that are linear combinations of two matrices
@@ -689,33 +816,110 @@ ls_kohn_1S0 = KohnLippmannSchwingerEmulator(
     r=r,
     dr=dr,
     NVP=newton_1S0,
+    is_local=True,
     ell=ell,
+    # nugget=1e-10,
 )
 
-rng = np.random.default_rng(3)
-p_train = rng.uniform(-200, 200, (n_train, 2))
+# rng = np.random.default_rng(12)
+# p_train = rng.uniform(-200, 200, (n_train, 2))
+p_train = np.array([
+    [0.0, -291.85],
+    [100.0, 8.15],
+    [300.0, -191.85],
+    [300.0, 8.15],
+])
+
 # p_valid = rng.uniform(-, 5, params_dimension)
 
 # When the wave function is predicted at the best fit Minnesota potential values
 p_valid = np.array([v_0r, v_0s])
 
+newton_1S0.fit(p_train)
 ls_kohn_1S0.fit(p_train)
-# psi_kohn_ls_1S0 = ls_kohn_1S0.predict(p_valid, full_space=True)
+```
 
 
-fig, ax = plt.subplots(figsize=(3.4, 3))
-
-u_train = ls_kohn_1S0.psi_train * r
-
-u_exact = ls_kohn_1S0.predict_wave_function(p_valid) * r
-u_valid = ls_kohn_1S0.emulate_wave_function(p_valid) * r
+```{python}
+psi_train_minn_1S0 = ls_kohn_1S0.psi_train
+psi_exact_minn_1S0 = ls_kohn_1S0.predict_wave_function(p_valid)
+psi_valid_minn_1S0 = ls_kohn_1S0.emulate_wave_function(p_valid)
 
 r_mask = r <= 10
+q_mask = np.isin(q_cm, [0.8, 1,  2])
+fig, axes = plot_wave_functions(
+    r=r[r_mask],
+    psi_emulator=psi_valid_minn_1S0[q_mask][..., r_mask],
+    psi_exact=psi_exact_minn_1S0[q_mask][..., r_mask],
+    psi_train=psi_train_minn_1S0[q_mask][..., r_mask],
+    q_cm=q_cm[q_mask]
+)
+axes[0].set_title("Radial wave functions for the Minnesota potential")
+plt.show()
+```
 
+```{python}
+ls_kohn_1S0.psi_train.shape
+```
+
+
+```{python}
+q_cm
+```
+
+
+
+```{python}
+K_1S0_kvp = ls_kohn_1S0.predict(p_valid, full_space=False)
+K_1S0_nvp = newton_1S0.predict(p_valid)
+K_1S0_exact = newton_1S0.predict(p_valid, full_space=True)
+
+delta_1S0_kvp = newton_1S0.phase_shifts(K_1S0_kvp)
+delta_1S0_train = newton_1S0.phase_shifts(newton_1S0.K_on_shell_train.T).T
+delta_1S0_nvp = newton_1S0.phase_shifts(K_1S0_nvp)
+delta_1S0_exact = newton_1S0.phase_shifts(K_1S0_exact)
+
+fig, ax = plt.subplots(figsize=(3.4, 3))
+# ax.plot(t_cm, newton_1S0.K_on_shell_train[0, :], **BASIS_KWARGS, label="Basis")
+# ax.plot(t_cm, newton_1S0.K_on_shell_train, **BASIS_KWARGS)
+# ax.plot(t_cm, K_1S0_nvp, **PRED_KWARGS, label="Emulator")
+# ax.plot(t_cm, K_1S0_exact, **FULL_KWARGS, label="Exact")
+ax.plot(t_cm, delta_1S0_train[:, 0], **BASIS_KWARGS, label="Basis")
+ax.plot(t_cm, delta_1S0_train, **BASIS_KWARGS)
+ax.plot(t_cm, delta_1S0_exact, **FULL_KWARGS, label="Exact")
+ax.plot(t_cm, delta_1S0_nvp, **PRED_KWARGS, label="Emulator")
+ax.plot(t_cm, delta_1S0_kvp, **PRED_KWARGS, label="Emulator")
+
+ax.legend()
+ax.set_title("1S0 Phase Shifts from the Minnesota Potential")
+ax.set_xlabel("$t_{\mathrm{cm}}$ [MeV]")
+ax.set_ylabel("$\delta$")
+# ax.axis("off")
+# ax.set_xticks([])
+# ax.set_yticks([])
+# ax.margins(0)
+# ax.set_ylim(-5, 5)
+plt.show()
+```
+
+```{python}
+newton_1S0.K_on_shell_train.shape
+```
+
+```{python}
+K_1S0_kvp.shape
+```
+
+
+
+```{python}
+r_mask = r <= 10
+
+fig, ax = plt.subplots(figsize=(3.4, 3))
 ax.plot(r[r_mask], u_exact[0, r_mask], **FULL_KWARGS, label="Exact")
 ax.plot(r[r_mask], u_valid[0, r_mask], **PRED_KWARGS, label="Emulator", c='w')
 for i, q_i in enumerate(q_cm):
-    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i:0.1f}$", zorder=0)
+    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i:0.1f}$", zorder=0, **BASIS_KWARGS)
     ax.plot(r[r_mask], u_train[i][:, r_mask].T, c=f"C{i}", zorder=0)
 
     ax.plot(r[r_mask], u_exact[i, r_mask], **FULL_KWARGS)
@@ -729,6 +933,7 @@ ax.set_ylabel("$u(r)$")
 ax.set_title("Radial wave functions for the Minnesota potential")
 plt.show()
 ```
+
 
 
 
