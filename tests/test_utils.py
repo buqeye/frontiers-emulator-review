@@ -244,11 +244,12 @@ def test_local_wave_function(ell):
         dr=dr,
         NVP=newton_1S0,
         ell=ell,
+        is_local=True,
     )
 
     # When the wave function is predicted at the best fit Minnesota potential values
     param_test = np.array([v_0r, v_0s])
-    psi_kohn_ls_1S0 = ls_kohn_1S0.predict(param_test, full_space=True)
+    psi_kohn_ls_1S0 = ls_kohn_1S0.predict_wave_function(param_test)
 
     # And it is inserted in the Schrodinger equation with a local Minnesota potential
     residual = schrodinger_residual(
@@ -319,11 +320,12 @@ def test_wave_function_from_reactance_matrix():
         NVP=newton,
         # inv_mass=hbar2_over_2mu,
         ell=ell,
+        is_local=False,
     )
 
     # And the K matrix from the LS equation is converted to a wave function in position space
     params = np.array([1])
-    psi_schwing = schwing.predict(params, full_space=True)
+    psi_schwing = schwing.predict_wave_function(params)
 
     # And the analytic Yamaguchi wave function is evaluated
     psi_analytic = yamaguchi_radial_wave_function(
