@@ -312,7 +312,7 @@ class SeparableKohnEmulator(BaseKohnEmulator):
         dk,
         q_cm,
         # inv_mass,
-        is_local,
+        # is_local,
         ell,
         nugget=0,
         use_lagrange_multiplier=False,
@@ -354,7 +354,7 @@ class SeparableKohnEmulator(BaseKohnEmulator):
             r=r,
             dr=dr,
             q_cm=q_cm,
-            is_local=is_local,
+            is_local=False,
             # inv_mass=inv_mass,
             nugget=nugget,
             use_lagrange_multiplier=use_lagrange_multiplier,
@@ -417,4 +417,224 @@ class SeparableKohnEmulator(BaseKohnEmulator):
 
         if return_K:
             return psi, K
+        return psi
+
+
+class AlternateKohnEmulator:
+    r""" """
+
+    def __init__(
+        self,
+        V0,
+        V1,
+        r,
+        dr,
+        q_cm,
+        NVP,
+        is_local,
+        ell,
+        use_lagrange_multiplier=False,
+    ):
+        self.r = r
+        self.dr = dr
+        self.V0 = V0
+        self.V1 = V1
+        self.q_cm = q_cm
+        nugget = NVP.nugget
+        # self.inv_mass = inv_mass
+        self.nugget = nugget
+        self.n_p = V1.shape[-1]
+        self.n_q = len(q_cm)
+        self.use_lagrange_multiplier = use_lagrange_multiplier
+        self.is_local = is_local
+
+        self.dU0 = None
+        self.dU1 = None
+        self.p_train = None
+        self.psi_train = None
+        self.K_train = None
+
+        self.NVP = NVP
+
+        self.ell = ell
+
+    def fit(self, p_train):
+        psi_train = []
+        K_train = []
+        for p in p_train:
+            psi_i, K_i = self.predict_wave_function(p, return_K=True)
+            psi_train.append(psi_i)
+            K_train.append(K_i)
+        psi_train = np.array(psi_train).transpose(1, 0, 2)
+        K_train = np.array(K_train)
+
+        n_train = len(p_train)
+        n_p = self.n_p
+        n_q = self.n_q
+        dU0 = np.zeros((n_q, n_train, n_train))
+        dU1 = np.zeros((n_q, n_train, n_train, n_p))
+        rhs0 = np.zeros((n_q, n_train))
+        rhs1 = np.zeros((n_q, n_train, n_p))
+        V0 = self.V0
+        V1 = self.V1
+        r = self.r
+        dr = self.dr
+
+        j_q = spherical_jn(n=self.ell, z=r * self.q_cm[:, None])
+        if self.is_local:
+            free_wf = r * j_q
+        else:
+            free_wf = r * dr * j_q
+
+        V0_free = np.einsum(
+            "ab,bd,ad->a",
+            r * dr * j_q,
+            V0,
+            free_wf,
+        )
+        V1_free = np.einsum(
+            "ab,bdp,ad->ap",
+            r * dr * j_q,
+            V1,
+            free_wf,
+        )
+
+        for i in range(n_train):
+            p_i = p_train[i]
+            Vi = V1 @ p_i
+
+            chi_left = r * dr * (psi_train[:, i] - j_q)
+
+            chi_V_phi_0 = np.einsum(
+                "ab,bd,ad->a",
+                chi_left,
+                V0,
+                free_wf,
+            )
+            chi_V_phi_1 = np.einsum(
+                "ab,bdp,ad->ap",
+                chi_left,
+                V1,
+                free_wf,
+            )
+            rhs0[:, i] = -chi_V_phi_0
+            rhs1[:, i] = -chi_V_phi_1
+            for j in range(n_train):
+                p_j = p_train[j]
+                Vj = V1 @ p_j
+
+                if self.is_local:
+                    chi_right = r * (psi_train[:, j] - j_q)
+                else:
+                    chi_right = r * dr * (psi_train[:, j] - j_q)
+
+                chi_V_phi_j = np.einsum(
+                    "ab,bd,ad->a",
+                    chi_left,
+                    Vj,
+                    free_wf,
+                )
+
+                dU0[:, i, j] = (
+                    np.einsum(
+                        "ab,bd,ad->a",
+                        chi_left,
+                        -Vj,
+                        chi_right,
+                    )
+                    - chi_V_phi_0
+                    - chi_V_phi_j
+                )
+                dU1[:, i, j] = np.einsum(
+                    "ab,bdp,ad->ap",
+                    chi_left,
+                    V1,
+                    chi_right,
+                )
+
+        dU0 = 0.5 * (dU0 + dU0.swapaxes(1, 2))
+        dU1 = 0.5 * (dU1 + dU1.swapaxes(1, 2))
+        self.dU0 = dU0
+        self.dU1 = dU1
+        self.rhs0 = rhs0
+        self.rhs1 = rhs1
+        self.V0_free = V0_free
+        self.V1_free = V1_free
+        self.p_train = p_train
+        self.psi_train = psi_train
+        self.chi_train = psi_train - j_q[:, None, :]
+        self.j_q = j_q
+        self.n_train = n_train
+        self.K_train = K_train
+
+        return self
+
+    def compute_dU(self, p):
+        return self.dU0 + self.dU1 @ p
+
+    def coefficients(self, p):
+        dU = self.compute_dU(p)
+        dU = dU + self.nugget * np.eye(dU.shape[-1])
+        rhs = self.rhs0 + self.rhs1 @ p
+        # print(rhs.shape, self.K_train.shape)
+
+        if self.use_lagrange_multiplier:
+            n_q = self.n_q
+            n_train = self.n_train
+            dU_expanded = np.block(
+                [
+                    [dU, np.ones((n_q, n_train, 1))],
+                    [np.ones((n_q, 1, n_train)), np.zeros((n_q, 1, 1))],
+                ]
+            )
+            rhs_expanded = np.block([[rhs.T], [np.ones((n_q))]]).T
+            return np.linalg.solve(dU_expanded, rhs_expanded)[:, :-1]
+        return np.linalg.solve(dU, rhs)
+
+    def emulate_wave_function(self, p):
+        c = self.coefficients(p)
+        j_q = self.j_q
+        psi = j_q + np.einsum("kjr,kj->kr", self.chi_train, c)
+        return psi
+
+    def emulate_reactance(self, p):
+        c = self.coefficients(p)
+        j_q = self.j_q
+        dU = self.compute_dU(p)
+        V_free = self.V0_free + self.V1_free @ p
+        rhs = self.rhs0 + self.rhs1 @ p
+        K = -V_free + 2 * (rhs * c).sum(axis=-1) - np.einsum("qn,qnm,qm->q", c, dU, c)
+        return -self.q_cm * K
+
+    def predict_wave_function(self, p, return_K=False):
+        R"""
+
+        References
+        ----------
+        [1] (1970) Haftel, Michael I. and Tabakin, Frank
+            NUCLEAR SATURATION AND THE SMOOTHNESS OF NUCLEON-NUCLEON POTENTIALS
+            Nucl. Phys. A
+            10.1016/0375-9474(70)90047-3
+        """
+        K_half = self.NVP.reactance(
+            p=p, include_q=False, shell="half", return_gradient=False
+        )
+        from scipy.special import spherical_jn
+
+        r = self.r
+        G0 = self.NVP.G0
+        k = self.NVP.k
+        q_cm = self.NVP.q_cm
+        Sp = self.NVP.Sp
+
+        G0_K = (2 / np.pi) * G0 * K_half
+        # G0_K = G0 * K_half
+        j_k = spherical_jn(n=self.ell, z=r * k[:, None])
+        j_q = spherical_jn(n=self.ell, z=r * q_cm[:, None])
+        j_G0_K = np.einsum("kr,qk->qr", j_k, G0_K)
+        psi = j_q + j_G0_K
+
+        if return_K:
+            K_on = q_cm * np.einsum("ij,ij->i", Sp, K_half)
+            return psi, K_on
         return psi
