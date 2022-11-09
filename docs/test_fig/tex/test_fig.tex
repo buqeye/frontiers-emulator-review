@@ -10,8 +10,15 @@
 \usepackage{braket}
 \usepackage{adjustbox}
 \usepackage{multirow}
+\usepackage{dsfont}
+\usepackage{makecell}
 
 \graphicspath{ {../} }
+
+% \newcommand{\toprule}{\hline}
+% \newcommand{\bottomrule}{\hline}
+% \newcommand{\midrule}{\hline}
+% \newcommand{\cmidrule}[#1]{\cline{#1}}
 
 % Try out cell padding to handle fractions
 % Must prefix column formatters with `S'
@@ -28,20 +35,44 @@
 
 \begin{document}
 \small
+
 \begin{tabular}{ccccc}
+% \multicolumn{4}{c}{How to construct a reduced-order model for the eigenvalue problem}
+% \\[2pt]
 \toprule
-
+\multirowcell{2}{
+High-fidelity system
+}
+% High-fidelity system
+% \multirow{2}{*}{\shortstack[l]{{High-fidelity system\\ Eigenvalue problem}}
+% \multicolumn{1}{|c|}{High-fidelity system}
+% \multicolumn{1}{|c|}{\multirowcell{2}{High-fidelity system\\ Eigenvalue problem}}
+% \multirowcell{2}{
+% \multirow{2}{*}{
+% \begin{tabularx}{\cellwidth}{|c|}
+% High-fidelity system\\ Eigenvalue problem
+% \end{tabularx}
+% }
+& \multicolumn{3}{c}{Constructing a reduced-order model for bound states}\\
+% \cmidrule(lr){1-1}
+\cmidrule(lr){2-4}
 % &
-High-fidelity system  & \multicolumn{2}{c}{Offline Phase} & Online Phase\\
+% High-fidelity system & \multicolumn{2}{c}{Offline Phase} & Online Phase\\
+% Eigenvalue problem
+% \multicolumn{1}{|c|}{Eigenvalue problem}
+% \multicolumn{1}{|c|}{}
+& \multicolumn{2}{c}{Offline stage} & Online stage \\
 % \cmidrule(lr){3-4}\cmidrule(lr){5-5}
-\cmidrule(lr){1-1}\cmidrule(lr){2-3}\cmidrule(lr){4-4}
+% \cmidrule(lr){1-1}
+\cmidrule(lr){1-1}
+\cmidrule(lr){2-3}\cmidrule(lr){4-4}
 
 % &
-\hspace{0.45in}$H(\theta)\hspace{0.43in}\ket{\psi}\hspace{0.05in}=E\hspace{0.06in}~\ket{\psi}$~
+\hspace{0.45in}$H(\boldsymbol{\theta})\hspace{0.43in}\ket{\psi}\hspace{0.05in}=E\hspace{0.06in}~\ket{\psi}$~
 %\!\!
 &
-\!\!\!\!Snapshots $\psi(\theta_i)$\!\!\!\!\!\!\!\!%\!\!
-& Projection
+\!\!\!\!Snapshots $\psi(\boldsymbol{\theta}_i)$\!\!\!\!\!\!\!\!%\!\!
+& Projection (after orthonormalizing snapshots)
 & Emulation ($E \approx \widetilde E$)
 \\[2pt]
 
@@ -117,7 +148,7 @@ $
 % test
 $
 \begin{aligned}
-\widetilde H(\theta) ~~~~\vec{\beta}~ & = \widetilde E~~\, \vec{\beta} \\
+\widetilde H(\boldsymbol{\theta}) ~~~~\vec{\beta}~ & = \widetilde E\widetilde N \vec{\beta} \\
 \begin{bmatrix}
 \vcenter{\hbox{\includegraphics{projected_matrix.png}}}
 \end{bmatrix}
@@ -132,7 +163,8 @@ $
 \vcenter{\hbox{\includegraphics{coefficients.png}}}
 \end{bmatrix}
 \\
-\phantom{H \vec{\beta} = \widetilde E \vec{\beta}}
+% \phantom{H \vec{\beta} = \widetilde E \vec{\beta}}
+(\widetilde N & = \mathds{1})
 \!\!
 \end{aligned}
 % % \rule{0pt}{-1in} 
@@ -155,11 +187,17 @@ $
 
 \\[32pt]
 
-\!\!\!$N_h \times N_h$\hspace{0.75in} & $N_h \times n_b$ & \hspace{0.2in}$n_b \times N_h$\hspace{0.55in}$N_h \times N_h$\hspace{0.3in}$N_h \times n_b$\hspace{0.25in}$n_b \times n_b$ &
+\multicolumn{1}{l}{\hspace{0.35in}$N_h \times N_h$\hspace{0.43in}$N_h$\hspace{0.47in}$N_h$}
+& $N_h \times n_b$
+&
+\multicolumn{1}{r}{$n_b \times N_h$\hspace{0.62in}$N_h \times N_h$\hspace{0.36in}$N_h \times n_b$\hspace{0.19in}$n_b \times n_b\hspace{0.06in}$}
+&
 % $n_b \times n_b$\hspace{0.6in}
 All size-$n_b$ operations
 
-\\\midrule
+\\
+% \midrule
+\cmidrule(lr){1-4}
 
 % Time
 % $t$
@@ -175,12 +213,20 @@ $\sim \vcenter{\hbox{\includegraphics{time_long.png}}}$
 
 &
 
-\!\!\!\!%
-Sampling $\theta$: $\vcenter{\hbox{\includegraphics{time_short.png}}}$
-\!\!\!\!%
+
+% \!\!\!\!%
+% Sampling $\theta$: $\vcenter{\hbox{\includegraphics{time_short.png}}}$
+% \!\!\!\!%
+% \!\!\!\!%
+$\vcenter{\hbox{\includegraphics{time_short_individual.png}}}$ per $\theta$ sample
+% \!\!\!\!%
 \\
-
 \bottomrule
+\\[-8pt]
+& & &
+\multicolumn{1}{r}{
+\hspace{-4in}%
+CPU time scales with the length of $\vcenter{\hbox{\includegraphics{time_long.png}}}$
+}
 \end{tabular}
-
 \end{document}
