@@ -119,8 +119,8 @@ class EigenEmulator:
         return (psi.T @ H_minus_E @ H_minus_E @ psi) / (psi.T @ H @ H @ psi)
 
 
-class NCSMEmulator(EigenEmulator):
-    R"""A no-core shell model (NCSM) emulator."""
+class OscillatorEmulator(EigenEmulator):
+    R"""A reduced-order model built from harmonic oscillator wave functions."""
 
     def fit(self, n):
         # Fake the basis wave functions as harmonic oscillator states
