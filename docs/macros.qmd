@@ -1,11 +1,7 @@
 ::: {.content-hidden when-format="pdf"}
 $$
 {{< include mymacros.tex >}}
-$$
-:::
 
-::: {.content-hidden when-format="pdf"}
-$$
-\renewcommand{\identity}{\mathbb{1}}
+\newcommand{\identity}{\mathbb{1}}
 $$
 :::

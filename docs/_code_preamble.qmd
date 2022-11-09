@@ -4,10 +4,11 @@
 #| output: false
 %load_ext autoreload
 %autoreload 2
+%matplotlib inline
 %config InlineBackend.print_figure_kwargs = {"bbox_inches": None, "facecolor": "w"}
 # %config InlineBackend.figure_formats = ['pdf']
 # import matplotlib_inline.backend_inline
-# matplotlib_inline.backend_inline.set_matplotlib_formats('pdf', 'png')
+# matplotlib_inline.backend_inline.set_matplotlib_formats('pdf')
 
 from IPython.display import display, Markdown
 from emulate import jupyter_show_class_method, markdown_class_method
