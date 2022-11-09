@@ -19,7 +19,7 @@ from .utils import cubic_spline_matrix
 
 
 from .eigen import EigenEmulator
-from .eigen import NCSMEmulator
+from .eigen import OscillatorEmulator
 from .eigen import BoundStateOperator
 
 # from .kvp import KohnEmulator
