@@ -244,37 +244,19 @@ def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
     if include_q:
         pre = pre * q_cm
     return pre / (
-        pi * strength * (beta**2 - q_cm**2)
-        + 4 * beta * (beta**2 + q_cm**2) ** 2
+        4 * beta * (beta**2 + q_cm**2) ** 2
+        + pi * strength * (beta**2 - q_cm**2)
     )
 
 
 def yamaguchi_radial_wave_function(r, q_cm, beta, strength):
     from scipy.special import spherical_jn
 
-    # f = yamaguchi_scattering_amplitude(
-    #     q_cm=q_cm, beta=beta, strength=strength, include_q=True
-    # )
-    # j_ell = spherical_jn(0, r * q_cm)
-    # psi = j_ell + f * (j_ell - np.exp(-beta * r)) / r
-    # return psi
-
-    # f = yamaguchi_scattering_amplitude(
-    #     q_cm=q_cm, beta=beta, strength=strength, include_q=False
-    # )
-    # print(f)
-    # j_ell = spherical_jn(0, r * q_cm)
-    # pre = 1
-    # # pre = 2 / pi
-    # # pre = pi / 2
-    # psi = j_ell + pre * f * (j_ell - np.exp(-beta * r)) / r
-
     j_ell = spherical_jn(0, r * q_cm)
     pre = (2 * pi * beta * strength) / (
         4 * beta * (beta**2 + q_cm**2) ** 2
         + pi * strength * (beta**2 - q_cm**2)
     )
-    # pre *= pi / 2
     psi = j_ell - pre * (np.cos(q_cm * r) - np.exp(-beta * r)) / r
     return psi
 
