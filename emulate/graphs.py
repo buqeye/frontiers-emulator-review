@@ -44,6 +44,8 @@ def setup_rc_params(
     # mpl.rc("text", usetex=True)
     mpl.rcParams["font.size"] = fontsize
     mpl.rcParams["text.usetex"] = usetex
+    # mpl.rcParams["text.latex.preamble"] = [r"\usepackage{amsmath}"]
+    mpl.rc("text.latex", preamble=r"\usepackage{amsmath}")
     # mpl.rcParams["text.latex.preview"] = True
     mpl.rcParams["font.family"] = "serif"
 
