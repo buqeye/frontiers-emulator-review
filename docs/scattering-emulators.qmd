@@ -504,6 +504,7 @@ It is known that the Schwinger variational principle yields a $K$ matrix that is
 %matplotlib inline
 %config InlineBackend.print_figure_kwargs = {"bbox_inches": None, "facecolor": "w"}
 
+
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -521,6 +522,7 @@ from emulate import NewtonEmulator
 from emulate import SeparableKohnEmulator
 from emulate import KohnLippmannSchwingerEmulator
 from emulate import BoundaryCondition
+from emulate.kvp import AlternateKohnEmulator
 
 setup_rc_params()
 sns.set_palette('pastel')
@@ -541,9 +543,9 @@ ell = 0
 
 Create a compound mesh object for Gaussian quadrature needed below.
 ```{python}
-n_intervals = 5
-nodes = np.linspace(0, 10, n_intervals)
-n_points = 40 * np.ones(n_intervals, dtype=int)
+n_intervals = 10
+nodes = np.linspace(0, 30, n_intervals)
+n_points = 80 * np.ones(n_intervals, dtype=int)
 mesh = CompoundMesh(nodes, n_points)
 
 # Use the same mesh for k and r
@@ -586,18 +588,23 @@ kohn = SeparableKohnEmulator(
     dk=dk,
     q_cm=q_cm,
     ell=ell,
-    is_local=False,
     nugget=nugget,
     use_lagrange_multiplier=False,
 )
 
-rng = np.random.default_rng(13)
+# rng = np.random.default_rng(13)
+rng = np.random.default_rng(11)
 params_dimension = len(betas) * (len(betas) + 1) // 2
 # p_train = rng.uniform(-50, 50, (n_train, params_dimension))
 # p_valid = rng.uniform(-50, 50, params_dimension)
 
-p_train = 1e2*rng.uniform(-5, 5, (n_train, params_dimension))
-p_valid = 1e2*rng.uniform(-5, 5, params_dimension)
+# p_train = 1e2*rng.uniform(-5, 5, (n_train, params_dimension))
+# p_valid = 1e2*rng.uniform(-5, 5, params_dimension)
+# p_train = 1e0*rng.uniform(-10, 10, (n_train, params_dimension))
+# p_valid = 1e0*rng.uniform(-10, 10, params_dimension)
+p_train = 1e1*rng.uniform(-5, 5, (n_train, params_dimension))
+# p_valid = 1e1*rng.uniform(-5, 5, params_dimension)
+p_valid = np.array([-30, 0, 20])
 
 kohn.fit(p_train)
 ```
@@ -627,8 +634,39 @@ newton_yama.fit(p_train)
 ```
 
 ```{python}
+V1_r_yama = []
+for i in range(n_form_factors):
+    for j in range(i, n_form_factors):
+        if i != j:
+            V1_r_yama.append(f_r[i][:, None] * f_r[j] + f_r[j][:, None] * f_r[i])
+        else:
+            V1_r_yama.append(f_r[i][:, None] * f_r[j])
+V1_r_yama = np.dstack(V1_r_yama)
+V0_r_yama = np.zeros(V1_r_yama.shape[:-1])
+
+
+ls_kohn = KohnLippmannSchwingerEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, NVP=newton_yama, is_local=False, ell=0)
+ls_kohn.fit(p_train)
+ls_coeff = ls_kohn.coefficients(p_valid)
+
+
+# alt_kohn = AlternateKohnEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, q_cm=q_cm, NVP=newton_yama, is_local=False, ell=0)
+# alt_kohn.fit(p_train)
+# alt_coeff = alt_kohn.coefficients(p_valid)
+# print(alt_coeff)
+```
+
+
+```{python}
+#| label: fig-phase-shifts-yamaguchi
+#| fig-cap: "Phase shifts constructed via various scattering emulators"
+
+
+p_valid = np.array([-30, 0, 20])
+# p_valid = np.array([20, 0, 0])
 K_yama_nvp = newton_yama.predict(p_valid)
-K_yama_kvp = kohn.predict(p_valid)
+# K_yama_kvp = kohn.predict(p_valid)
+K_yama_kvp = ls_kohn.predict(p_valid)
 K_yama_exact = newton_yama.predict(p_valid, full_space=True)
 K_yama_train = kohn.K_train
 
@@ -637,7 +675,7 @@ phase_yama_kvp = newton_yama.phase_shifts(K_yama_kvp)
 phase_yama_exact = newton_yama.phase_shifts(K_yama_exact)
 phase_yama_train = newton_yama.phase_shifts(K_yama_train)
 
-fig, axes = plt.subplots(2, 1, figsize=(3.4, 3.5), sharex=True)
+fig, axes = plt.subplots(2, 1, figsize=(3.3, 3.5), sharex=True)
 
 ax = axes.ravel()[0]
 ax.plot(q_cm, phase_yama_train[0], **BASIS_KWARGS, label="Basis")
@@ -657,9 +695,10 @@ ax.semilogy(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
 ax.semilogy(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP")
 ax.legend()
 ax.set_ylabel("Absolute Residual [deg]")
-ax.set_xlabel(r"$q_{\mathrm{cm}}$ [fm$^{-1}$]")
+# ax.set_xlabel(r"$q_{\mathrm{cm}}$ [fm$^{-1}$]")
+ax.set_xlabel(r"$q$ [fm$^{-1}$]")
 
-fig.savefig("figures/phase_shifts_yamaguchi")
+# fig.savefig("figures/phase_shifts_yamaguchi")
 plt.show()
 ```
 
@@ -686,7 +725,7 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
     offset = -2.2
     y_ticks = []
 
-    fig, axes = plt.subplots(2, 1, figsize=(3.4, 3.5), sharex=True)
+    fig, axes = plt.subplots(2, 1, figsize=(3.3, 3.5), sharex=True)
     ax = axes.ravel()[0]
 
     ax.plot(r, u_train[0, 0, :], **BASIS_KWARGS, label="Basis")
@@ -702,13 +741,21 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
         ax.plot(r, u_exact[i] + y_i, **FULL_KWARGS)
         ax.plot(r, u_valid[i] + y_i, **PRED_KWARGS)
         # ax.text(-0.2, y_i-0.3, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="left", va="top", bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}"))
-        ax.text(-0.65, y_i, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="right", va="center",
-        bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}", lw=0.5),
-        fontsize=6)
+        # ax.text(
+        #     -0.65, y_i, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="right", va="center",
+        #     bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}", lw=0.5),
+        #     fontsize=6
+        # )
+        ax.text(
+            -0.73, y_i, fr"$q = {q_i}$", ha="right", va="center",
+            bbox=dict(boxstyle="round", fc="w", ec=f"C{i}", lw=0.5),
+            fontsize=8
+        )
 
 
     ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
-    ax.legend(loc="upper right")
+    # ax.legend(loc="upper right")
+    ax.legend(loc="lower left", bbox_to_anchor=(0, 1.03, 1, 1), mode="expand", borderaxespad=0, ncol=3)
     # ax.set_xlabel("$r$")
     # ax.set_ylabel("$u(r)$")
     ax.set_yticks(y_ticks)
@@ -717,7 +764,7 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
 
     ax = axes.ravel()[1]
     for i, q_i in enumerate(q_cm):
-        ax.semilogy(r, u_resid[i], label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ls=["-", "--", ":"][i])
+        ax.semilogy(r, u_resid[i], label=fr"$q = {q_i}$", ls=["-", "--", ":"][i])
     ax.set_xlabel("$r$")
     ax.set_ylabel(r"Abs.\ Residual")
     ax.legend()
@@ -728,6 +775,8 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
 
 
 ```{python}
+#| label: fig-wave-functions-yamaguchi
+#| fig-cap: "Wave functions constructed via the KVP."
 psi_train_yama = kohn.psi_train
 psi_exact_yama = kohn.predict_wave_function(p_valid)
 psi_valid_yama = kohn.emulate_wave_function(p_valid)
@@ -741,9 +790,9 @@ fig, axes = plot_wave_functions(
     psi_train=psi_train_yama[q_mask][..., r_mask],
     q_cm=q_cm[q_mask]
 )
-axes[0].set_title("Yamaguchi Radial Wave Functions")
+# axes[0].set_title("Yamaguchi Radial Wave Functions")
 
-fig.savefig("figures/wave_functions_yamaguchi")
+# fig.savefig("figures/wave_functions_yamaguchi")
 plt.show()
 ```
 
@@ -854,19 +903,9 @@ fig, axes = plot_wave_functions(
     psi_train=psi_train_minn_1S0[q_mask][..., r_mask],
     q_cm=q_cm[q_mask]
 )
-axes[0].set_title("Radial wave functions for the Minnesota potential")
+# axes[0].set_title("Radial wave functions for the Minnesota potential")
 plt.show()
 ```
-
-```{python}
-ls_kohn_1S0.psi_train.shape
-```
-
-
-```{python}
-q_cm
-```
-
 
 
 ```{python}
@@ -879,16 +918,16 @@ delta_1S0_train = newton_1S0.phase_shifts(newton_1S0.K_on_shell_train.T).T
 delta_1S0_nvp = newton_1S0.phase_shifts(K_1S0_nvp)
 delta_1S0_exact = newton_1S0.phase_shifts(K_1S0_exact)
 
-fig, ax = plt.subplots(figsize=(3.4, 3))
+fig, ax = plt.subplots(figsize=(3.3, 3))
 # ax.plot(t_cm, newton_1S0.K_on_shell_train[0, :], **BASIS_KWARGS, label="Basis")
 # ax.plot(t_cm, newton_1S0.K_on_shell_train, **BASIS_KWARGS)
 # ax.plot(t_cm, K_1S0_nvp, **PRED_KWARGS, label="Emulator")
 # ax.plot(t_cm, K_1S0_exact, **FULL_KWARGS, label="Exact")
-ax.plot(t_cm, delta_1S0_train[:, 0], **BASIS_KWARGS, label="Basis")
-ax.plot(t_cm, delta_1S0_train, **BASIS_KWARGS)
-ax.plot(t_cm, delta_1S0_exact, **FULL_KWARGS, label="Exact")
-ax.plot(t_cm, delta_1S0_nvp, **PRED_KWARGS, label="Emulator")
-ax.plot(t_cm, delta_1S0_kvp, **PRED_KWARGS, label="Emulator")
+ax.plot(q_cm, delta_1S0_train[:, 0], **BASIS_KWARGS, label="Basis")
+ax.plot(q_cm, delta_1S0_train, **BASIS_KWARGS)
+ax.plot(q_cm, delta_1S0_exact, **FULL_KWARGS, label="Exact")
+ax.plot(q_cm, delta_1S0_nvp, **PRED_KWARGS, label="Emulator")
+ax.plot(q_cm, delta_1S0_kvp, **PRED_KWARGS, label="Emulator")
 
 ax.legend()
 ax.set_title("1S0 Phase Shifts from the Minnesota Potential")
@@ -901,39 +940,6 @@ ax.set_ylabel("$\delta$")
 # ax.set_ylim(-5, 5)
 plt.show()
 ```
-
-```{python}
-newton_1S0.K_on_shell_train.shape
-```
-
-```{python}
-K_1S0_kvp.shape
-```
-
-
-
-```{python}
-r_mask = r <= 10
-
-fig, ax = plt.subplots(figsize=(3.4, 3))
-ax.plot(r[r_mask], u_exact[0, r_mask], **FULL_KWARGS, label="Exact")
-ax.plot(r[r_mask], u_valid[0, r_mask], **PRED_KWARGS, label="Emulator", c='w')
-for i, q_i in enumerate(q_cm):
-    ax.plot(r[r_mask], u_train[i, 0, r_mask].T, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i:0.1f}$", zorder=0, **BASIS_KWARGS)
-    ax.plot(r[r_mask], u_train[i][:, r_mask].T, c=f"C{i}", zorder=0)
-
-    ax.plot(r[r_mask], u_exact[i, r_mask], **FULL_KWARGS)
-    ax.plot(r[r_mask], u_valid[i, r_mask], **PRED_KWARGS)
-
-
-ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
-ax.legend()
-ax.set_xlabel("$r$")
-ax.set_ylabel("$u(r)$")
-ax.set_title("Radial wave functions for the Minnesota potential")
-plt.show()
-```
-
 
 
 
@@ -1022,16 +1028,19 @@ nabla_proj = np.einsum("ir,jr->ij", dr * psi_train, d2_psi_train)
 U_proj = np.einsum("ir,rp,jr->ijp", dr * psi_train, U1, psi_train)
 norm_proj = np.einsum("ir,jr->ij", dr * psi_train, psi_train)
 
-
+plt.show()
 ```
 
 
 
 ```{python}
+#| label: fig-wave-functions-origin
+#| fig-cap: "Wave functions constructed via the origin emulator."
 bc_idx = 0
 # Use a Petrov-Galerkin approach for the test functions on the boundary. Use d_psi.
 BC_norm_proj = d_psi_train[:, bc_idx] * d_psi_train[:, bc_idx].T
 b = d_psi_train[:, bc_idx]
+print(BC_norm_proj, BC_norm_proj.shape)
 
 p_valid = np.random.default_rng(29).uniform(-5, 5, len(KAPPAS))
 
@@ -1044,7 +1053,7 @@ psi_exact, _ = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_valid, 
 coeff = np.linalg.solve(R0 + R1 @ p_valid, b)
 psi_valid = coeff @ psi_train
 
-fig, axes = plt.subplots(2, 1, figsize=(3.4, 4), sharex=True)
+fig, axes = plt.subplots(2, 1, figsize=(3.3, 3), sharex=True)
 
 r_mask = r <= 10
 
@@ -1055,28 +1064,21 @@ ax.plot(r[r_mask], psi_train[:, r_mask].T, **BASIS_KWARGS)
 # ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
 ax.plot(r[r_mask], psi_exact[r_mask], **FULL_KWARGS, label="Exact")
 ax.plot(r[r_mask], psi_valid[r_mask], **PRED_KWARGS, label="Emulator")
+ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
 ax.set_xlim(0, 10)
 # ax.set_xlabel("$r$")
-ax.set_ylabel("$u(r)$")
-ax.legend()
-ax.set_title("Galerkin approach for $u(r)$ with Minnesota potential")
+ax.set_ylabel("$r\psi(r)$")
+# ax.legend()
+ax.legend(loc="lower left", bbox_to_anchor=(0, 1.03, 1, 1), mode="expand", borderaxespad=0, ncol=3)
+# ax.set_title("Galerkin approach for $u(r)$ with Minnesota potential")
 
 
 ax = axes.ravel()[1]
 
-ax.semilogy(r[r_mask], np.abs(psi_exact[r_mask]-psi_valid[r_mask]), label="Abs. Residual")
+ax.semilogy(r[r_mask], np.abs(psi_exact[r_mask]-psi_valid[r_mask]), label="Abs.\ Residual")
 ax.set_xlabel("$r$")
 ax.legend()
 plt.show()
-```
-
-```{python}
-r[bc_idx]
-```
-
-
-```{python}
-print(coeff, coeff.sum())
 ```
 
 :::
