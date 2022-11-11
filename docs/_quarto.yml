@@ -1,6 +1,6 @@
 project:
   type: book
-  title: "BUQEYE Guide to Emulators in Nuclear Physics"
+  title: "BUQEYE Guide to Projection-Based Emulators in Nuclear Physics"
   # render:
   #   # - mymacros.tex
   #   # - macros.qmd
@@ -13,10 +13,10 @@ project:
   output-dir: _output
 
 book:
-  title: "BUQEYE Guide to Emulators in Nuclear Physics"
+  title: "BUQEYE Guide to Projection-Based Emulators in Nuclear Physics"
   author:
     - name: Christian Drischler
-      affiliation: Ohio University
+      affiliation: Ohio University, Facility for Rare Isotope Beams
       orcid: 0000-0003-1534-6285
     - name: Dick Furnstahl
       affiliation: The Ohio State University
@@ -28,7 +28,7 @@ book:
       affiliation: The Ohio State University
       orcid: 0000-0003-1359-1594
     - name: Xilin Zhang
-      affiliation: Michigan State University
+      affiliation: Facility for Rare Isotope Beams
       orcid: 0000-0001-9278-5359
   date: "8/14/2022"
   cover-image: buqeye_logo_web.png
@@ -37,17 +37,20 @@ book:
   repo-actions: [source, issue]
   # description: "Supplemental material for our guide to emulators"
   abstract: |
-    We provide a pedagogical survey of reduced-order model applications to emulators for low-energy nuclear physics.
-    The term emulator refers to an algorithm capable of approximating an exact model calculation with high accuracy while requiring only a fraction of the computational resources.
-    As the general tools employed by these emulators are not well known in the nuclear community, we begin with an introduction to projection methods, including variational and Galerkin projections.
-    We then explore how these lead to emulators for bound and scattering systems that enable fast & accurate calculations using many different parameter sets.
-    Finally, we point to extensions based on the broad field of model reduction and discuss open questions.
-    All examples discussed here and more are available as open-source Python code so that practitioners can quickly incorporate reduced-order emulators into their own work.
+    The BUQEYE collaboration (Bayesian Uncertainty Quantification: Errors in Your EFT) presents a pedagogical introduction
+    to projection-based, reduced-order emulators for applications in low-energy nuclear physics.
+    The term *emulator* refers here to a fast surrogate model
+    capable of reliably approximating high-fidelity models.
+    As the general tools employed by these emulators are not yet well known in the nuclear physics community, we discuss variational and Galerkin projection methods, emphasize the benefits of offline-online decompositions, and explore how these concepts lead to emulators for bound and scattering systems that enable fast \& accurate calculations using many different model parameter sets.
+    We also point to future extensions and applications of these emulators for nuclear physics, guided by the mature field of model (order) reduction.
+    All examples discussed here and more are available as interactive, open-source Python code so that practitioners
+    can readily adapt projection-based emulators for their own work.
+
   chapters:
     - index.qmd
     - intro.qmd
-    - model-reduction.qmd
     - eigen-emulators.qmd
+    - model-reduction.qmd
     - scattering-emulators.qmd
     - summary.qmd
     - references.qmd
@@ -70,6 +73,7 @@ bibliography:
   - references.bib
   - emulator_refs.bib
   - bayesian_refs.bib
+  - test.bib
 csl: phys_rev_c.csl
 
 format:

@@ -10,22 +10,65 @@
 \newcommand{\eg}{\textit{e.g.}\xspace}
 \newcommand{\ie}{\textit{i.e.}}
 
+\newcommand{\ritzbasis}{X}
+\newcommand{\ritzvec}{\tilde \psi}
+\newcommand{\ritzval}{\tilde E}
+\newcommand{\normmat}{\mathcal{N}}
+\newcommand{\EC}{EC}
+\newcommand{\NEC}{\ensuremath{N_{\rm EC}}}
+
 \newcommand*{\diffdchar}{\mathrm{d}}    % or {ⅆ}, or {\mathrm{d}}, or whatever standard you’d like to adhere to
-\newcommand*{\dd}{\mathop{\diffdchar\!}}
+%\newcommand*{\dd}{\mathop{\diffdchar\!}}
 
 \newcommand{\action}{\mathcal{S}}
-\newcommand{\genkvp}{\mathcal{L}}
-\newcommand{\nbasis}{N_\theta}
-\newcommand{\weights}{\beta}
-\newcommand{\kvpweights}{\vec{\weights}_\star}
+\newcommand{\nbasis}{n_b}
+\newcommand{\nsimulator}{N_h}
+\newcommand{\nparam}{N_\theta}
+\newcommand{\ntrain}{n_{\textup{train}}}
+
+% \newcommand{\genkvp}{\mathcal{L}}
+% \newcommand{\weights}{\beta}
+% \newcommand{\kvpweights}{\vec{\weights}_\star}
 \newcommand{\lagmult}{\lambda_\star}
 \newcommand{\psitrial}{\widetilde \psi}
 \newcommand{\dU}{\Delta \widetilde U}
-\newcommand{\param}{\boldsymbol{\theta}}
+\newcommand{\param}{\theta}
+\newcommand{\params}{\boldsymbol{\theta}}
 \newcommand{\umatrix}{\boldsymbol{u}}
+\newcommand{\genkvp}{\mathcal{L}}
+
+\newcommand{\identity}{\mathds{1}}
+\newcommand{\trialfunc}{\xi}
+\newcommand{\testfunc}{\zeta}
+
+% \newcommand{\lecs}{\vec{a}}
+
 
 
 \newcommand{\transpose}[1]{{#1}^{\intercal}}
 \newcommand{\trans}{\intercal}
 
-\newcommand{\identity}{\mathds{1}}
+\newcommand{\etal}{\textit{et~al.}\xspace}
+
+% Differential taken from Physics package
+% Uses smart spacing for a nice look. Requires xparse.
+% https://www.ctan.org/pkg/physics?lang=en
+
+% First, the basics:
+\def\diffd{\mathrm{d}}  % Upright differentials
+% \def\diffd{d}  % Italic differentials
+
+% Now add spacing:
+% Derivatives
+\DeclareDocumentCommand\differential{ o g d() }{ % Differential 'd'
+    % o: optional n for nth differential
+    % g: optional argument for readability and to control spacing
+    % d: long-form as in d(cos x)
+    \IfNoValueTF{#2}{
+        \IfNoValueTF{#3}
+            {\diffd\IfNoValueTF{#1}{}{^{#1}}}
+            {\mathinner{\diffd\IfNoValueTF{#1}{}{^{#1}}\argopen(#3\argclose)}}
+        }
+        {\mathinner{\diffd\IfNoValueTF{#1}{}{^{#1}}#2} \IfNoValueTF{#3}{}{(#3)}}
+    }
+\DeclareDocumentCommand\dd{}{\differential} % Shorthand for \differential

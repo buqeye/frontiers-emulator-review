@@ -3,5 +3,7 @@ $$
 {{< include mymacros.tex >}}
 
 \newcommand{\identity}{\mathbb{1}}
+\newcommand{\eg}{\textit{e.g.}\xspace}
+\newcommand{\ie}{\textit{i.e.}\xspace}
 $$
 :::
