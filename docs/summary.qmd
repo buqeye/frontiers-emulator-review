@@ -1,3 +1,51 @@
-# Summary
+::: {.hidden}
+{{< include macros.qmd >}}
+:::
 
-In summary, this book has no content whatsoever.
+# Summary & Outlook {#sec-conclusion}
+
+We have presented a pedagogical introduction to projection-based, reduced-order emulators and general MOR concepts suitable for a wide range of applications in low-energy nuclear physics.
+Emulators are fast surrogate models capable of reliably approximating high-fidelity models due to their reduced content of superfluous information.
+By making practical otherwise impractical calculations, they can open the door to the various techniques
+and applications central to the overall theme of this Frontiers Research Topic @ResearchTopicUQ, such as Bayesian parameter estimation for UQ, experimental design, and many more.
+
+In particular, we have discussed variational and Galerkin methods combined with snapshot-based trial (or test) functions as the foundation for constructing fast & accurate emulators.
+These emulators enable repeated bound state and scattering calculations, _e.g._, for  sampling a model's parameter space when high-fidelity calculations are computationally expensive or prohibitively slow.
+A crucial element in the emulator workflow, as summarized in Figure @fig:illustration_fom_rom, is an efficient offline-online decomposition in which the heavy computational lifting is performed only once before the emulator is invoked.
+Chiral Hamiltonians allow for such efficient decompositions due to their affine parameter dependence on the low-energy couplings.
+
+While MOR has already reached maturity in other fields, it is still in its infancy in nuclear physics---although rapidly growing---and there remains much to explore and exploit [@Melendez:2022; @Bonilla:2022rph; @Anderson:2022jhq; @Giuliani:2022yna].
+In the following, we highlight some of the many interesting research avenues for emulator applications in nuclear physics.
+All of these avenues can benefit from the rich MOR literature and software tools available (_e.g._, see References [@Benner_2017aa; @Benner2017modelRedApprox; @benner2015survey]):
+
+* Emulator uncertainties need to be robustly quantified and treated on equal footing with other uncertainties in nuclear physics calculations, such as EFT truncation errors.
+    This will be facilitated by the extensive literature on the uncertainties in the RBM [@chen2017RBUQ; @Haasdonk2016RBM; @HUYNH2007473; @Rozza2008].
+
+* Speed-ups of competing emulators (_e.g._, the Newton vs Kohn variational principle) are typically highly implementation dependent.
+    Best practices for efficient implementation of nuclear physics emulators should be developed.
+    MOR software libraries from other fields, such as **pyMOR** @milk2016pyMOR, should be exploited where possible.
+
+* Galerkin emulators are equivalent to variational emulators for bound-state and scattering calculations if the test and trial basis are properly chosen.
+    But Galerkin (and especially Petrov-Galerkin) emulators are more general and exploring their applications
+    in nonlinear problems
+    may be fruitful in nuclear physics.
+
+* Many technical aspects should be further explored, such as greedy (or active-learning)~@Sarkar:2021fpz and SVD-based algorithms for choosing the training points more effectively, hyperreduction methods for non-affine problems, and improved convergence analyses.
+
+* The emulator framework can be used to extrapolate observables far away from the support of the training data, such as the discrete energy levels of a many-body system calculated in one phase to those of another, as demonstrated in Reference @Frame:2017fah.
+    Using emulators as a resummation tool to increase the convergence radius of series expansions @Demol:2019yjt falls into this category as well, and so does using them to extrapolate finite-box simulations of quantum systems across wide ranges of box sizes @Yapa:2022nnv.
+    Moreover, for general quantum continuum states, emulation in the complex energy plane can enable computing scattering observables with bound-state methods @XilinZhangLECM2022.
+    Extrapolation capabilities of emulators should be investigated further.
+
+* While projection-based emulators have had successes (_e.g._, see References [@Konig:2019adq; @Ekstrom:2019lss; @Wesolowski:2021cni]), it is also important to understand their limitations and investigate potential improvements.
+    The synergy between projection-based and machine learning methods is a new direction being undertaken in the field of MOR for this purpose (_e.g._, see Reference @FRESCA2022114181).
+    Nuclear physics problems, with and without time dependence, will provide ample opportunities for such explorations.
+
+* Emulators run fast, often with a small memory footprint, and can be easily shared.
+    These properties make emulators effective interfaces for large expensive calculations, through which  users can access sophisticated physical models at a minimum cost of computational resources and without specialized expertise, creating a more efficient workflow for nuclear science.
+    As such, emulators can become a collaboration tool @Drischler:2022yfb that can catalyze new direct and indirect connections between different research areas and enable novel studies.
+
+To help foster the exploration of these (and other) research directions in nuclear physics, we have created a companion website  @companionwebsite containing interactive supplemental material and source code so that the interested reader can experiment with and extend the examples discussed here.
+
+We look forward to seeing more of the MOR methodology implemented as these research directions are being pursued.
+But especially we look forward to the exciting applications of emulators in nuclear physics that are currently beyond our grasp.
