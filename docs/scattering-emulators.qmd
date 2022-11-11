@@ -4,512 +4,902 @@ format:
   html:
     code-fold: show
     code-tools: true
+    include-in-header:
+      - text: |
+          \usepackage{slashed}
+          \usepackage{mathds}
 jupyter: python3
 ---
 
-# Scattering Emulators {#sec-scattering-emulators}
+::: {.hidden}
+$$
+{{< include mymacros.tex >}}
+$$
+:::
+{{< include _code_preamble.qmd >}}
 
 ::: {.hidden}
 {{< include macros.qmd >}}
 :::
 
-{{< include _code_preamble.qmd >}}
 
+# Scattering Emulators {#sec-scattering-emulators}
 
-In this section we describe the various MOR emulators one could construct for quantum scattering systems.
-Throughout, we note the relationship between the variational principles from which emulators have been constructed in recent works [@Furnstahl:2020abp; @Drischler:2021qoy; @Zhang:2021jmi; @Melendez:2021lyq; @KVP_vs_NVP:2022].
+In this Section, we describe the various reduced-basis emulators one could construct for quantum scattering systems.
+Throughout, we note how the variational principles used to construct emulators in recent works are related [@Furnstahl:2020abp;@Drischler:2021qoy;@Zhang:2021jmi;@Melendez:2021lyq; @KVP_vs_NVP:2022].
 We also describe how each of the results from VPs could instead be derived from Galerkin projections.
 
+For scattering problems, the Schrödinger equation @eq-generic_eigenvalue_problem is
+no longer an eigenvalue problem.
+The task is to solve the differential equation for the wave function at a given energy $E$ rather than searching for discrete energies with normalizable wave functions.
+Differential equations are well studied in the field of MOR, where parametric reduced-order models have been constructed with great success across a multitude of fields [@Benner2020Volume1DataDriven;@Benner2020Volume3Applications].
+This is a relatively mature field whose formal results are quite extensive.
+For example, UQ for the RBM has been well studied, along with the development of effective algorithms for choosing the best training points [@chen2017RBUQ;@hesthaven2015certified;@HUYNH2007473;@Rozza2008].
 
-## Kohn Emulators {#sec-kohn}
+|  Name | Functional for $K$ | Strong Form | Trial Basis | Test Basis | $\lambda$ |
+|---|---|---|---|---|---|
+|  Kohn ($\lambda$) |  $\trial K_E + \braket{\trial\psi | H - E | \trial\psi}$ | $H\ket{\psi} = E\ket{\psi}$ | $\ket{\psi_i}$ | $\bra{\psi_i}$  |  Yes |
+| Kohn ($\slashed{\lambda}$)  | $\begin{aligned} \braket{\trial\chi | H - E | \trial\chi} + \braket{\phi | V | \trial\chi} \\ +\braket{\phi | H - E | \phi} + \braket{\trial\chi | V | \phi} \end{aligned}$  |  $[E-H]\ket{\chi} = V\ket{\phi}$ |  $\bra{\chi_i}$ | $\ket{\chi_i}$  | No  |
+| Schwinger  | $\begin{aligned} \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} \\ - \braket{\trial\psi | V - V G_0 V | \trial\psi} \end{aligned}$  |  $\ket{\psi} = \ket{\phi} + G_0 V\ket{\psi}$  | $\ket{\psi_i}$ | $\bra{\psi_i}$ | No  |
+| Newton  | $\begin{aligned} V + V G_0 \trial K + \trial K G_0 V \\  - \trial K G_0 \trial K + \trial K G_0 V G_0 \trial K \end{aligned}$  | $K = V + VG_0 K$  |  $K_i$ |  $K_i$  |  No |
+
+Table: Description of common variational principles (VPs) in quantum scattering, and how to relate them to a Galerkin projection. The quantities are defined as the free wave function $\ket{\phi}$, the full wave function $\ket{\psi}$, the scattered wave function $\ket{\chi}$, and the reactance matrix $K$ along with its on-shell form $K_E$. Tildes denote trial quantities. The expressions for the Newton VP are written in operator rather than scalar form; each component is individually stationary when projected between arbitrary states $\bra{\phi'}$ and $\ket{\phi}$. To compute the weak form of the Schwinger and Newton VPs, one must first left multiply by $V(\params)$ and $G_0$, respectively, before orthogonalizing against the test basis. The rightmost column specifies whether a normalization constraint for the trial wave function has to be imposed (using a Lagrange multiplier $\lambda$). {#tbl-scattering-vps-galerkin}
+
+One can formulate the Schrödinger equation in multiple ways, including any flavor of Lippmann-Schwinger (LS) integral equation (which builds in boundary conditions) or as a differential equation in either homogeneous or inhomogeneous form.
+This freedom, along with the freedom of trial and test bases for the Galerkin projection, leads to multiple alternative emulators that one could construct for quantum scattering systems.
+As a concise reference, we provide Table @tbl-scattering-vps-galerkin to show the connections between the fundamental differential or integral equations, variational principles, and Galerkin projections.
+This section thus provides multiple distinct examples of using Galerkin projections to create emulators, which may prove useful to newcomers wishing to apply model reduction to their own systems, and ends with an example for an emulator applied to a separable potential.
 
 
-### Theory {#sec-kohn-theory}
+## Kohn Emulators with Lagrange Multipliers {#sec-kohn-lagrange}
 
-We would like to solve the Schrödinger equation for scattering systems (at center-of-mass $E > 0$) across a range of parameters $\param$:
-$$
-\begin{aligned}
-    H(\param) \ket{\psi} = E \ket{\psi}.
-\end{aligned}
-$$ {#eq-schrodinger}
-We assume that $E = q^2 / 2\mu$ is fixed throughout and we suppress the $E$ dependence of $\ket{\psi_E} = \ket{\psi}$; the process can be repeated separately across a set of energies to create a suite of emulators, if desired.
-The type of emulator that could be built from @eq-schrodinger is not unique, but rather depends on choices made by the modeler, such as the boundary conditions imposed on $\psi$.
-It is known that if one writes
-$$
-\begin{aligned}
-\braket{r | \psi} = \psi(r) = \frac{u(r)}{r} Y_{\ell}^m(\Omega_r)
-\end{aligned}
-$$
-then one of the boundary conditions is given by
-$$
-\begin{aligned}
-u(0) = 0.
-\end{aligned}
-$$
-<!-- However, the second boundary condition needed to completely specify the solution to @eq-schrodinger is yet to be chosen. -->
-Here we impose the final boundary condition by asserting that $\ket{\psi}$ satisfies the following Lippmann-Schwinger equations for wave functions
-$$
-\begin{aligned}
- \ket{\psi} = \ket{\phi} + G_0 K \ket{\phi},
-\end{aligned}
-$$
-where $K$ is the real reactance matrix, $\ket{\phi}$ is the free-space wave function, and $G_0 = (H_0 - E)^{-1}$ in principle value.
+The Kohn variational principle (KVP) [@Kohn:1948col;@Kohn:1951zz] is one of the most well-known VPs for quantum scattering systems.
+Here we focus on the KVP flavor that relates a trial wave function to the reactance matrix $K$.
+However, other flavors exist for other matrices such at $T^{\pm}$ and $S$ (see Section @sec-kohn-general).
+Analogously to the Ritz VP for bound states, the KVP then allows us to guess effective wave functions by finding those that make the KVP stationary.
+This Section will discuss a style of KVP emulator that relies on the homogeneous Schrödinger equation, which requires a normalization constraint during emulation; an alternative style without such a constraint will be discussed in Section @sec-kohn-no-lagrange.
 
-We begin building our MOR emulator by first writing @eq-schrodinger in integral form.
-Here we choose the general Kohn variational principle (KVP), which states that
+We start with a rescaled version of the KVP discussed in Furnstahl _et al._ [@Furnstahl:2020abp]:
 $$
-\begin{aligned}
-    \mathcal{K}[\psi] = K - \frac{2\mu}{q} \braket{\psi | [H - E] | \psi}
-\end{aligned}
-$$ {#eq-kvp}
-where $K$ is the on-shell reactance matrix, $\mu$ is the reduced mass, and $E = q^2/2\mu$ [@Furnstahl:2020abp; @Drischler:2021qoy].
-The functional yields $\mathcal{K}[\psi] = K$ when $\psi$ is an exact wave function, and is a stationary approximation otherwise: $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K^2)$.
-Rather than finding a wave function $\ket{\psi}$ that satisfies @eq-schrodinger, our task now has now changed to finding a wave function that makes @eq-kvp stationary.
+\begin{align} %%\label{#eq-kohn-psi}
+    \mathcal{K}[\trial\psi] = \trial K_E + \braket{\trial\psi | H - E | \trial\psi},
+\end{align}
+$$ {#eq-kohn-psi}
+where $\ket{\trial\psi}$ is the trial wave function (denoted by $\ket{\trial\trialfunc}$ in Section @sec-model-reduction) and $\trial K_E \equiv \sum_i \coeff_i K_{E,i}$ the associated on-shell trial $K$ matrix with on-shell energy $E = q^2/2\mu$.
+This flavor of KVP applies when $\psi$ satisfies the asymptotic normalization condition in position space
+$$
+\begin{align} %%\label{#eq-psi-normalization}
+    \psi_\ell(r) \xrightarrow[r\to\infty]{} j_{\ell}(qr) + n_{\ell}(qr) \tan \delta_{\ell},
+\end{align}
+$$ {#eq-psi-normalization}
+where $\phi(r) = j_\ell(qr)$ is the (regular) free-space wave function, and $j_\ell(qr)$ and $n_\ell(qr)$ are spherical Bessel and Neumann functions, respectively.
+Note that we define the on-shell $K_E$ matrix as
+$$
+\begin{equation}
+    K_E = -\frac{\tan\delta_\ell}{2\mu q},
+\end{equation}
+$$
+which differs from the convention in Reference [@Furnstahl:2020abp].
+The KVP is stationary about exact solutions $\psi$, such that $\mathcal{K}[\psi + \delta\psi] = K_E + \mathcal{O}(\delta K)^2$.
 
-The key to creating an efficient emulator from @eq-kvp follows from a trial wave function ansatz
+Equation @eq-kohn-psi can be cast into the form of the generic functional @eq-generic_functional by noting that, in position space,
 $$
-\begin{aligned}
-    \ket{\widetilde\psi} \equiv \sum_{i=1}^{N_b} \beta_i \ket{\psi_i}
-\end{aligned}
-$$ {#eq-trial_ansatz_kohn}
-where $\{\ket{\psi_i}\}$ is the exact solution to @eq-schrodinger for a choice of $\param_i$.
+\begin{align} %\label{#eq-kohn-psi-surface-functional}
+    \int_\Gamma \dd{\Gamma} G[\trial\psi] \to \!\left. G[\trial\psi] \right|_{r=0}^\infty & \equiv \!\left. \frac{W(r\phi, r\trial\psi; r)}{2\mu} \right|_{r=0}^\infty \notag\\
+    & = \trial K_E,
+\end{align}
+$$ {#eq-kohn-psi-surface-functional}
+which has defined the surface functional $G$ in Equation @eq-generic_functional} and where we have used the Wronskian
+$$
+\begin{align} %\label{#eq-wronskian}
+    W(\phi, \psi; r) \equiv \phi(r) \psi'(r) - \phi'(r)\psi(r).
+\end{align}
+$$ {#eq-wronskian}
+Both $\phi(r)$ and $\trial\psi(r)$ vanish at $r=0$ so only the limit of $r\to\infty$ contributes, from which we can use Equation @eq-psi-normalization when evaluating Equation @eq-kohn-psi-surface-functional.
 
-Inserting @eq-trial_ansatz_kohn into @eq-kvp yields
+Because the Schrödinger equation is a linear, homogeneous differential equation, the normalization of $r\psi(r)$ is proportional to its derivative at, say, $r=0$.
+Therefore, a constraint on the normalization of $\psi$ is equivalent to a boundary condition on $\psi'$.
+However, to satisfy this boundary condition we must include a constraint on Equation @eq-kohn-psi if we are to ensure that the trial function $\trial\psi$ continues to satisfy the normalization condition of Equation @eq-psi-normalization}.
+If we assume that each snapshot $\psi_i$ satisfies Equation @eq-psi-normalization, then
 $$
-\mathcal{K}[\psitrial] = \beta_i K_i - \frac{1}{2} \beta_i \dU_{ij}\beta_j
-$$ {#eq-kvp_reduced}
-where we have defined
+\begin{align}
+    \trial\psi_\ell(r) = \left[\sum_i \coeff_i\right] j_{\ell}(qr) + n_{\ell}(qr) \sum_i \coeff_i \tan \delta_{\ell,i},
+\end{align}
 $$
-\begin{aligned}
-    \dU_{ij} & \equiv 2\mu \braket{\psi_i | [H - E] | \psi_j} \notag\\
-    & ~+ 2\mu \braket{\psi_j | [H - E] | \psi_i} \notag\\
-    & = 2\mu \braket{\psi_i | [V(\param) - V_j] | \psi_j} \notag\\
-    & ~+ 2\mu \braket{\psi_j | [V(\param) - V_i] | \psi_i},
-\end{aligned}
+whose first term implies that we must impose the constraint $\sum_i \coeff_i = 1$.
+
+We are now in a position to find the $\coeffs$ that make the Equation @eq-kohn-psi stationary.
+If we insert the definition of $\trial\psi$ and $\trial K$ into Equation @eq-kohn-psi, along with the Lagrange multiplier, we have (with repeated indices indicating summations)
+$$
+\begin{align} %\label{#eq-kohn-psi-reduced}
+    \mathcal{K}[\coeffs] = \coeff_i K_{E,i} + \frac{1}{2}\coeff_i \dU_{ij} \coeff_j + \lambda \!\left[\sum_i \coeff_i - 1\right],
+\end{align}
+$$ {#eq-kohn-psi-reduced}
+where we define $V_i = V(\params_i)$ and
+$$
+\begin{align} %\label{#eq-delta_u_tilde}
+    \dU_{ij} & \equiv \braket{\psi_i | [H - E] | \psi_j} + (i\leftrightarrow j)\notag\\
+    %& \quad + \braket{\psi_j | [H - E] | \psi_i} \notag\\
+    & = \braket{\psi_i | [V(\params) - V_j] | \psi_j}  + (i\leftrightarrow j) .\notag\\
+    %&  \quad+ \braket{\psi_j | [V(\params) - V_i] | \psi_i} .
+\end{align}
 $$ {#eq-delta_u_tilde}
-In the final line we have added and subtracted $V_i \equiv V(\param_i)$ and $V_j \equiv V(\param_j)$ to use @eq-schrodinger.
-A consequence of this formulation is that only short-range physics would be involved since the long-ranged potentials, such as Coulomb, would drop out of @eq-delta_u_tilde if the fine structure constant is fixed.
-Emulating $\psi$ (via @eq-trial_ansatz_kohn), and hence $K$ (via @eq-kvp_reduced), has now reduced to determining the values of $\weights$ that make @eq-kvp_reduced stationary under the constraint that $\sum_i \weights_i = 1$ such that the wave functions remain normalized.
-Such a solution can be found using a Lagrange multiplier $\lambda$, and is given by
+In the second line we have used that the $\ket{\psi_j}$ are eigenstates with the corresponding $V_j$.
+If $V(\params)$ is affine in $\params$, then $\dU$ can be projected once in the emulator's offline stage, and reconstructed quickly during the online stage.
+
+Now we can follow the steps outlined in Section @sec-variational to determine $\coeffsopt$.
+Taking the gradient of Equation @eq-kohn-psi-reduced} with respect to $\coeffs$ and setting it equal to 0 yields
 $$
-\begin{aligned} %\label{eq:coeff_solution}
-    \begin{pmatrix}
+\begin{align} %\label{#eq-kohn-psi-gradient}
+    \vec{K}_{E} + \dU \coeffsopt + \lagmult = 0,
+\end{align}
+$${#eq-kohn-psi-gradient}
+where $\vec{K}_E$ are the $\nbasis$ on-shell $K$-matrices used to train the emulator, and $\coeffsopt$ are the optimal coefficients of the trial wave function.
+The gradient with respect to $\lambda$ simply returns the constraint.
+This system can be solved via the system of equations
+$$
+\begin{align} %\label{#eq-kohn-psi-coeff-solution}
+    \begin{bmatrix}
         \dU & \vec{1}\,{} \\
         \vec{1} \, {}^\intercal & 0\,{}
-    \end{pmatrix}
-    \begin{pmatrix}
-        \kvpweights \, {} \\
+    \end{bmatrix}
+    \begin{bmatrix}
+        \coeffsopt \, {} \\
         \lagmult \, {}
-    \end{pmatrix}
+    \end{bmatrix}
     =
-    \begin{pmatrix}
-        \vec{K} \\
+    \begin{bmatrix}
+        -\vec{K}_E \\
         1
-    \end{pmatrix}.
-\end{aligned}
-$$ {#eq-coeff_solution}
-The fact that @eq-coeff_solution is a linear system means that if $N_b$, the number of basis functions, is much smaller than the size of $\psi$, then this can be a highly computationally efficient emulator for scattering systems.
+    \end{bmatrix},
+\end{align}
+$${#eq-kohn-psi-coeff-solution}
+where $\vec{1}$ is an $\nbasis \times 1$ vector of ones.
+If the $\nbasis$ number of basis functions is much smaller than the size of $\psi$, then Equation @eq-kohn-psi-coeff-solution can be a highly computationally efficient emulator for scattering systems and requires little computer memory to store.
+The on-shell $K$ matrix can then be emulated via
+$$
+\begin{align} %\label{#eq-kohn-psi-K-emulator}
+    K_E \approx \mathcal{K}[\coeffsopt] = \coeffsopt \cdot \vec{K}_E + \frac{1}{2}\coeffsopt^\trans \dU \coeffsopt ,
+\end{align}
+$${#eq-kohn-psi-K-emulator}
+whose operations all occur quickly in the size-$\nbasis$ space during the online stage.
 
-As the basis size $N_b$ increase, the matrix $\dU$ becomes increasingly ill-conditioned, which is due to the collinearity of the basis states. A way to mitigate this issue is through the use of regularization techniques. Furnstahl et al. [@Furnstahl:2020abp] proposed adding a small regularization parameter known as a nugget to the diagonal.
+The derivation above followed closely that of References [@Furnstahl:2020abp,@Drischler:2021kxf], but one could instead arrive at exactly Equation @eq-kohn-psi-coeff-solution} from a Galerkin projection [@Bonilla:2022rph].
+Rather than begin with the VP, we start here with (the _strong form_ of) the homogeneous Schrödinger equation, _i.e._,
+$$
+%\begin{align}
+    H(\params) \ket{\psi} = E \ket{\psi}.
+%\end{align}
+$$
+To construct the weak form, we multiply with a test function $\ket{\testfunc}$ and assert that the residual vanishes:
+$$
+\begin{align} %\label{#eq-kohn-weak-initial}
+    \braket{\testfunc | H - E | \psi} = 0, \qquad \forall \ket{\testfunc}.
+\end{align}
+$${#eq-kohn-weak-initial}
+To make explicit the boundary conditions, we make use of the relation
+$$
+\begin{multline} %\label{#eq-int-by-parts-wronskian}
+    0=\braket{\testfunc | H - E | \psi} \\= \braket{\testfunc | \overleftarrow{H} - E | \psi} - \left.\frac{W(r\testfunc, r\psi; r)}{2\mu} \right|_{r=0}^{\infty},
+\end{multline}
+$${#eq-int-by-parts-wronskian}
+where we have again used the Wronskian from Equation @eq-wronskian, and assigned $\overleftarrow{H}$ as the operator acting, after integration by parts, on $\langle \testfunc | $ instead of  $|\psi\rangle$.
+By adding Equations @eq-int-by-parts-wronskian and @eq-kohn-weak-initial, we have
+$$
+\begin{multline} %\label{#eq-kohn-weak-full}
+    \braket{\testfunc | H - E | \psi} + \braket{\testfunc | \overleftarrow{H} - E | \psi} \\ = \left.\frac{W(r\testfunc, r\psi; r)}{2\mu} \right|_{r=0}^{\infty}.
+\end{multline}
+$${#eq-kohn-weak-full}
+This is the weak form of the homogeneous Schrödinger equation that we will use to construct the emulator, although the asymptotic normalization condition @eq-psi-normalization still needs to be enforced.
+This will be imposed via a Lagrange multiplier after inserting our trial basis.
 
-<!--
-Everything we have done thus far is representation-independent.
-The only difference between emulating in coordinate- and momentum-space is how we calculate the basis functions $\psi_i$ used to construct @eq-trial_ansatz_kohn, and thus the manner in which $\dU$ is evaluated in @eq-delta_u_tilde.
-If one had already obtained $\{\psi_i\}$ in coordinate space, then $\dU$ could be straightforwardly evaluated.
-
-In momentum space, we instead initially solve for the $K$ matrix and must relate $K$ to $\psi$ before using @eq-delta_u_tilde.
-There are a couple relations one could use to accomplish this goal: the definition of the scattering wave function using the $K$ matrix
+Now that we have a weak form, the next step to construct the reduced-order model equations is to define our trial and test bases to project the weak form into the finite space of these bases.
+To align with the Kohn emulator from the variational argument above, we choose the trial and test basis to be identical as snapshots $\psi_i$.
+Then we can evaluate
 $$
-\begin{aligned}
-    \ket{\psi} = \ket{\phi} + G_0 K \ket{\phi},
-\end{aligned}
+\begin{align}
+    \left.\frac{W(r\psi_i, r\psi_j; r)}{2\mu} \right|_{r=0}^{\infty} = K_j - K_i
+\end{align}
 $$
-where $\phi$ is the free-space wave function, or the definition of $K$ itself
+and thus, it follows after including the Lagrange multiplier that
 $$
-\begin{aligned}
-    K\ket{\phi} \equiv V\ket{\psi}.
-\end{aligned}
+\begin{align} %\label{#eq-kohn-weak-reduced-unfinished}
+    \lambda + \Big[\braket{\psi_i | H - E | \psi_j} & + \braket{\psi_i | \overleftarrow{H} - E | \psi_j}\Big] \coeff_j \notag\\
+    & \hspace{-0.4in} = \sum_j \coeff_j K_j - K_i \sum_j \coeff_j.
+\end{align}
+$$ {#eq-kohn-weak-reduced-unfinished}
+The sum in the rightmost term can be evaluated using the constraint $\sum_j \coeff_j=1$, and we can make the redefinition $\lambda' \equiv \lambda - \sum_j \coeff_j K_j$ without impacting the solution because this term does not depend on $i$.
+Thus, we have
 $$
-The first relation yields
-$$
-\begin{aligned}
-    \dU_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | \Delta V_{j}(\param) | \phi_{\ell}}
-    + \braket{\phi_{\ell'} | \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} \notag\\
-    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) | \phi_{\ell}} \notag\\
-    & + \braket{\phi_{\ell'} | K_i G_0 \Delta V_{j}(\param) G_0 K_j | \phi_{\ell}} + (i \leftrightarrow j),
-\end{aligned}
-$$
-where sums over coupled states are implied by the operator products, and we have defined
-$$
-\begin{aligned}
-    \Delta V_{i}(\param) \equiv V(\param) - V_i
-\end{aligned}
-$$
-for convenience.
-The latter relation yields
-$$
-\begin{aligned}
-    \dU_{ij}^{\ell'\ell}(\param) & = \braket{\phi_{\ell'} | K_i V_i^{-1} \Delta V_{j}(\param) V_j^{-1} K_j | \phi_{\ell}} + (i \leftrightarrow j).
-\end{aligned}
-$$
--->
-
-The efficient evaluation of $\dU$ across a range of $\param$ values is critical to the applicability of the emulator.
-This is achieved due to the affine dependence of $V$ on the parameters $\param$:
-$$
-\begin{aligned}
-    V(\param) = V^0 + \sum_{i=1}^{\nbasis} \theta_i V^1_i,
-\end{aligned}
-$$
-which implies
-$$
-\begin{aligned}
-    \dU(\param) = \dU^0 + \sum_{i=1}^{\nbasis} \theta_i \Delta \widetilde {U}^1_i,
-\end{aligned}
-$$ {#eq-dU0_dU1}
-where the superscripts $0$ and $1$ refer to parameter-independent and -dependent terms, respectively.
-This allows each term in @eq-delta_u_tilde to be evaluated up front and stored.
-The value of $\dU(\param)$ at any new parameter value is then easily reconstructed from each term.
-
-By considering @eq-dU0_dU1, the emulation process can then be separated into two parts: the offline and online stage.
-In the offline stage the emulator is trained and @eq-delta_u_tilde is calculated.
-The online stage is then where we obtain the emulator predictions, $\ie$, evaluate @eq-dU0_dU1 for a given set of $\param$ and solve for $\kvpweights$ using @eq-coeff_solution.
-
-
-### Removing the Lagrange multiplier {#sec-kohn-no-lagrange}
-
-
-The Lagrange multiplier can be removed from the emulator equations by solving for it in terms of other known quantities.
-By starting with
-$$
-\lagmult \vec{1} = \vec{K} - \dU \coeffs
-$$
-one can write
-$$
-\lagmult = \frac{1}{\nbasis} \left[\vec{1}\cdot\vec{K} - \vec{1}^T\dU \coeffs\right].
-$$
-Now substituting this in the reduced KVP
-$$
-\begin{aligned}
-\mathcal{K} & = K_i\coeff_i - \frac{1}{2} \coeff_i \dU_{ij} \coeff_j - \lagmult \left[\vec{1}\cdot\coeffs - 1\right]
-\end{aligned}
-$$
-and enforcing stationarity yields
-$$
-M\coeffs = \vec{K} - \frac{1}{\nbasis} \left[\dU \vec{1} + \vec{K}\cdot\vec{1}\right]
-$$ {#eq-kohn-solution-no-lagrange}
-where
-$$
-M_{ij} = \dU_{ij} - \frac{1}{\nbasis} \sum_{k} \left[\dU_{ik} + \dU_{kj}\right].
-$$
-This formulation requires solving a matrix of one fewer dimension than @eq-coeff_solution and @eq-kohn-solution-no-lagrange tends to be a better conditioned system to solve as well.
-
-
-### Generalized Kohn Variational Principle {#sec-kohn-general}
-The KVP function, @eq-kvp, can be extended to include arbitrary boundary conditions. We define $\genkvp$ as a general functional for a general scattering matrix L,
-$$
-\begin{aligned}
-    \mathcal{L}[\psi] = L - \frac{2\mu}{q \, \mathrm{det} \umatrix} \braket{\psi | [H - E] | \psi},
-\end{aligned}
-$$ {#eq-kvp-general}
-where $\umatrix$ are non-singular matrices used to parametrize the asymptotic boundary conditions [@PhysRevA.40.6879; @Drischler:2021qoy; @KVP_vs_NVP:2022].
-
-The general KVP functional may not always provide a stationary approximation. 
-The consequence is spurious singularites known as Kohn (Schwartz) anomalies [@PhysRev.124.1468; @nesbet1980variational]. 
-These anomalies appear at random energies and depend on the parameters $\param$ used to train the emulator in the offline stage and the evaluation set used in the online stage. 
-Using @eq-kvp-general one can evaluate different KVPs for different boundary conditions and use the predictions to detect any singularities.
-
-Drischler et al. [@Drischler:2021qoy] proposed using multiple emulators evaluated at different boundary conditions as a way to mitigate these anomalies.
-The process involves calculating an estimated (mixed) $S$ matrix from a weighted sum of averages using KVP pairs that pass a consistency check.
-This new estimated $S$ matrix will now be the emulator prediction.
-For more information see [@Drischler:2021qoy; @KVP_vs_NVP:2022].
-
-### Coupled Systems {#sec-kohn-coupled}
-
-In this section we have not yet considered partial wave projections because the KVP is more general.
-However, calculations are sometimes more conveniently performed after a partial-wave expansion has occurred.
-In these cases, it is useful to understand how the KVP decomposes as well.
-
-Let $s'$ and $s$ denote the incoming and outgoing channels, respectively.
-(If the channel is uncoupled, we could replace $ss' \to \ell$ throughout the following.)
-The KVP then generalizes simply to
-$$
-\mathcal{K}^{ss'} = \beta_i K_i^{ss'} - \frac{1}{2} \beta_i \dU_{ij}^{ss'}\beta_j
-$$ {#eq-kvp_reduced_coupled}
-where
-$$
-\begin{aligned}
-    \dU_{ij}^{ss'} & \equiv 2\mu \braket{\psi_i^{st} | [H - E]^{tt'} | \psi_j^{t's'}} \notag\\
-    & ~+ 2\mu \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
-    & = 2\mu \braket{\psi_i^{st} | [V(\param) - V_j]^{tt'} | \psi_j^{t's'}} \notag\\
-    & ~+ 2\mu \braket{\psi_j^{st} | [V(\param) - V_i]^{tt'} | \psi_i^{t's'}}.
-\end{aligned}
-$$ {#eq-delta_u_tilde_coupled}
-Solving for $\coeffs$ now proceeds as in @eq-coeff_solution but for a specific choice of $ss'$ channels.
-Note that the coefficients $\coeffs$ are to be determined *independently* for each $ss'$ pair.
-
-This independence can be understood in the following ways.
-First, note that $\mathcal{K}^{ss'}$ is independently stationary for each $ss'$ pair.
-This becomes particularly apparent when considering how one would solve for the coefficients in the uncoupled case where $ss'\to\ell$.
-Here, each partial wave is completely independent of one another and thus it would not make sense to mix the VPs or the $\coeff$ across values of $\ell$.
-Now consider adiabatically turning on a coupling between two partial waves $s$ and $s'$: the coefficients $\coeffs^{(s)}$ and $\coeffs^{(s')}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, $\coeffs^{(ss')}$.
-Thus, even in the coupled case, there are multiple independent sets of coefficients to determine: one for each pair of $ss'$.
-
-An alternative way to understand how the $\coeffs$ enter in the coupled case is to instead start with the Schrodinger equation and enforce (Petrov-)Galerkin orthogonalization as in @sec-kohn-galerkin.
-For the diagonal channels, the test functions are chosen to have the same outgoing channel as the trial functions, making the procedure of standard Galerkin form.
-But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$).
-Because the basis of test functions differs from the basis of the trial function, this is instead a Petrov-Galerkin approach.
-The linear equations to be solved are exactly what one would obtain from enforcing stationarity in @eq-kvp_reduced_coupled for each $ss'$ independently.
-
-### Generalizations to the continuum states of the higher-body systems {#sec-higher-body-continuum}
-
-The calculations of few-body continuum states are already computationally expensive, starting with three-body systems. Therefore emulators for these calculations are desirable for enabling efficient model calibrations against experimental measurements, e.g., fixing  modern nucleon interactions based on Chiral effective field theory against nucleon-deuteron scattering data. 
- 
-The KVP has in fact been applied directly to compute three-nuclon continnum states in nuclear physics, including nucleon-deuteron elastic scatterings below and above the deuteron break-up threshold. Of course, there are other direct ways to perform high-fidelity calculations of three-body continuum states in momentum or coordinate space through Faddeev formalism. Lately, the KVP-based two-body emulator has been generalized to three-identifcal-boson systems, particularly one boson elastic scattering off two-boson bound state below the break-up threshold. For elastic scatterings below or above the break-up treshold, the scattering S-matrix can be estimated via a functional that resembles the KVP functional used in two-body case
-$$
-\begin{aligned}
- \mathcal{S}[\psi] = S - \frac{i}{3\mathcal{N}^2}  \braket{\psi | [H - E] | \psi} 
-\end{aligned}
-$$ {#eq-three-body-elastic-scattering-KVP-functional}  
-Here, we focus on spinlese particles without any relative angular momenta. $S$ is the S-matrix associated with the corresponding trial wave function $|\psi\rangle$ (note this is the full three-body wave function, NOT the so-called Faddeev component), with the wave function's asymptotic behavior 
-$$
-\begin{aligned}
-\langle {R}_1, {r}_1|\psi\rangle 
-      \overset{R_1\to \infty}{\longrightarrow} \frac{\mathcal{N}}{\sqrt{v} } \frac{u_B({r}_1) }{ r_1 R_1} 
-     \bigl(-e^{-i P R_1} + S\, e^{i P R_1} \bigr) . 
-\end{aligned}
-$$ {#eq-WFbelowbreakupAsym}
-$R_1, r_1$ is one of three different Jacobi coordinates. $v$ is the relative velocity between the scattering particles in the incoming channel, $\mathcal{N}$ the normalization constant that have appeared in @eq-three-body-elastic-scattering-KVP-functional, and $u_B(r)_1$ as the radial wave function of the two-body bound state. 
-
-Following the basic procedure outlined above for two-body emulators, we can perform high-fieldity calculations of $| \psi \rangle$ at various points in the parameter space (e.g., interaction potentials) at the off-line stage, known as snap shots or training calculations. At the on-line stage (emulation), we construct the trial solution to be used in the variational functional as a linear combination of those snapt shots. The same set of the low-dimensional linear equations could be derived for fixing the weights in this linear construction, and the variational functions with these inputs produce accurate results for $S$ matrix at emulation points. This is all straightforward, if we vary only the three-body interaction, while the two-body interaciton is fixed. If the latter is also varied, the two-body bound states at each snap shots could be different among themselves and the linear combination of the snap shots don't have proper asymptotic behavio as in @eq-WFbelowbreakupAsym. As shown in latest work, modifications can be applied to the linear construction to satisfy the condition. The resulted emulator is again a low-dimensional equation system, but the matrix elements lose the affine structure that is a key for fast emulation. Different hyper-reduction approaches could be applied, includig EIM and statistical learning method. In the latest work, we apply the GP to emulate those matrix elements in the parameter space, considering their dependence in the parameters are much smoother, as compared to that of the scattering observable's dependence on those parameters.  
-
-The results for the emulation below the break-up treshold are very encouraging. It should be straight forward to genearlize it to elastic scattering above the break-up threshold. More work needs to be done for generalization to emulating the break-up processes, and even higher-body systems. Of course, proper Fermi statistics, spin and isospin degrees of freeom, and partial waves beyond the s-wave need to be included as well to realize emulation for three-nucleon continuum states.  
+\begin{align} %\label{#eq-kohn-weak-reduced}
+    \lambda' + \vec{K}_E + \dU \coeffsopt = 0,
+\end{align}
+$$ {#eq-kohn-weak-reduced}
+which is exactly Equation @eq-kohn-psi-gradient found by making the KVP stationary.
+This simplification can be understood by noting that if $\{\coeffsopt, \lambda_\star\}$ satisfy Equation @eq-kohn-weak-reduced-unfinished}, then we know that $\{\coeffsopt, \lambda_\star'\}$ is the unique solution to Equation @eq-kohn-weak-reduced.
+Therefore, we can solve Equation @eq-kohn-weak-reduced} to obtain $\coeffsopt$ rather than Equation @eq-kohn-weak-reduced-unfinished.
+In conclusion, the Galerkin projection of the homogeneous Schrödinger equation with trial and test bases of $\psi_i$ is equivalent to the KVP as in Equation @eq-kohn-psi.
 
 
 
-### Relating Kohn to Galerkin Orthogonality {#sec-kohn-galerkin}
-
-Rather than starting with a variational principle, the Galerkin approach starts with the Schrodinger equation.
-Like the variational approach, it expands $\ket{\psi}$ as a linear combination of known functions (snapshots), but determines the basis coefficients by enforcing orthogonality against a set of *test functions*.
-To arrive at the KVP, we choose the test function to be the scattering wave: $\ket{\chi} = \ket{\psi} - \ket{\phi} = G_0 V \ket{\psi}$.
-The resulting set of equations is equivalent to those that follow from making the KVP stationary.
+## Kohn Emulators without Lagrange Multipliers {#sec-kohn-no-lagrange}
 
 
-The weak form of the Schrodinger equation with our asymptotic constraint is given by
+The Kohn emulators from Section @sec-kohn-lagrange} start with the homogeneous Schrödinger equation, which does not enforce any specific normalization of the wave function; hence this requirement needs to be enforced at the time of emulation.
+This effectively takes the $\nbasis$ degrees of freedom $\{\psi_i\}$---which were potentially costly to obtain---and reduces the degrees of freedom to $\nbasis-1$.
+However, one can instead build in the normalization constraint from the very start, thus removing the need to constrain our basis during emulation.
+This is the topic of the current section.
+
+The full wave function $\ket{\psi}$ can be written as the sum of the free wave function $\ket{\phi}$ and the scattered wave $\ket{\chi}$, that is, $\ket{\psi} = \ket{\phi} + \ket{\chi}$.
+Thus, we can rewrite the KVP as
 $$
-    \braket{\chi | [H - E] | \trial\chi} = - \braket{\chi | V | \phi}
-$$
-where we have left multiplied the Schrodinger equation by $\bra{\chi}$ and used the Lippmann Schwinger equation $\ket{\trial\psi} = \ket{\phi} + \ket{\trial\chi}$.
-By restricting the trial and test functions to finite bases, the set of constraints provided by the Galerkin approach is then
-$$
-    \braket{\chi_i | [H - E] | \chi_j} \coeffs_j = -\braket{\chi_i | V | \phi}
-$$
-for all $i = 1, \dots, \nbasis$.
-If one is so inclined, this equation can be made symmetric by using integration by parts and noting that the boundary term vanishes if $\ell' = \ell \mod 2$.
-The symmetric linear equation then becomes
-$$
-\begin{aligned}
-    A_{ij}\weights_j & = b_i \\
-    A_{ij} & =  \braket{\chi_i | [H - E] | \chi_j} + (i\leftrightarrow j) \\
-    b_i & = - 2\braket{\chi_i | V | \phi}
-\end{aligned}
-$$
-Although it does not look like it, this is exactly the linear equation to be solved for the KVP emulator (barring the Lagrange multiplier term, which should be included above to enforce the normalization condition).
-Starting with the KVP and using the LS equation for wave functions,
-$$
-\begin{aligned}
-    \mathcal{K} & = K - 2\mu \braket{\psi | [H - E] | \psi} \notag\\
-    & = K \notag \\
-    & \quad - 2\mu \braket{\phi | [H - E] | \phi} 
-     - 2\mu\braket{\chi | [H - E] | \chi} \notag \\
-    & \quad - 2\mu \braket{\phi | [H - E] | \chi} - 2\mu \braket{\chi | [H - E] | \phi} \notag\\
-    & = - 2\mu \braket{\phi | [H - E] | \phi}  - 2\mu\braket{\chi | [H - E] | \chi} \notag\\
-    & \quad - 2\mu \braket{\phi | V | \chi} - 2\mu \braket{\chi | V | \phi}
-\end{aligned}
-$$
+\begin{align}
+    \mathcal{K} & = K + \braket{\psi | [H - E] | \psi} \notag\\
+    & = K + \braket{\chi | [H - E] | \chi} + \braket{\phi | [H - E] | \chi}
+      \notag \\
+    & \qquad~ + \braket{\phi | [H - E] | \phi} + \braket{\chi | [H - E] | \phi} \notag\\
+    & = \braket{\chi | [H - E] | \chi} + \braket{\phi | V | \chi} \notag\\
+    & \quad\, + \braket{\phi | [H - E] | \phi} + \braket{\chi | V | \phi} , %\label{#eq-kohn-no-lagrange}
+\end{align}
+$$ {#eq-kohn-no-lagrange}
 where we used (via integration by parts)
 $$
-    2\mu\left[\braket{\phi | [H - E] | \chi} - \braket{\phi | [H^{\dagger} - E] | \chi}\right] = K.
+\begin{equation}
+    \braket{\phi | [H - E] | \chi} - \braket{\phi | [\overleftarrow{H} - E] | \chi} = -K.
+\end{equation}
 $$
-Inserting the trial and test bases while enforcing stationarity in the above equation yields the linear equation found via the Galerkin method (in its symmetric form).
-One of the benefits of the variational approach is that the matrices obtained are always symmetric, which has numerical benefits.
-Furthermore, since the KVP itself is a functional for $K$, one can use the KVP to emulate $K$, which might not have been immediately apparent from the straightforward Galerkin approach.
+We choose our trial function as $\ket{\trial\chi}$, which always enforces the normalization condition $\ket{\trial\psi} = \ket{\phi} + \ket{\trial\chi}$, and so
+no additional constraint needs to be included in the variational principle.
 
-## Newton Emulators {#sec-newton} 
+Now we can construct the set of linear equations that makes Equation @eq-kohn-no-lagrange stationary in $\ket{\trial\chi} = \sum_{i} \coeff_i \ket{\chi_i}$.
+By taking the gradient with respect to $\coeff_i$, we find
+$$
+\begin{align} %\label{#eq-kohn-no-lagrange-solution}
+    \braket{\chi_i | [E - H] | \chi_j}\coeff_j = \braket{\chi_i | V | \phi}% \quad \forall i \in [1, \dots, \nbasis]
+\end{align}
+$${#eq-kohn-no-lagrange-solution}
+for all $i \in [1, \dots, \nbasis]$, which is the set of equations used to obtain $\coeffsopt$.
+The matrix element on the left-hand side of Equation @eq-kohn-no-lagrange-solution can be evaluated via
+$$
+\begin{align}
+    [E - H] \ket{\chi_j} & = [E - H_j] \ket{\chi_j} + [V_j - V] \ket{\chi_j} \notag\\
+    & = V_j \ket{\phi} + [V_j - V]\ket{\chi_j},
+\end{align}
+$$
+with $H_j = H(\params_j)$ and $V_j = V(\params_j)$.
 
-The Lippmann-Schwinger (LS) equation provides an alternative to scattering problems and is equivalent to solving the Schrodinger equation.
-The LS equation is an integral equation, rather than a differential equation, whose solution is the reactance matrix $K$ (or, the $T^{\pm}$ matrices). 
-This approach is particularly useful when in momentum space, where the $K$ matrix results from a simple matrix solve operation, which sidesteps the need for a differential equation solver.
-It is possible to build a reduced-order model directly from the LS equation by using the Newton variational principle.
 
+An equivalent approach follows from a Galerkin orthogonalization procedure.
+We begin by writing the homogeneous Schrödinger equation in inhomogeneous form using $\ket{\psi} = \ket{\phi} + \ket{\chi}$:
+$$
+\begin{align}
+    [E - H] \ket{\chi} = V \ket{\phi}.
+\end{align}
+$$
+We can construct the weak form by multiplying by a generic test function $\ket{\testfunc}$, which yields
+$$
+\begin{align}
+   \braket{\testfunc | E - H | \chi} = \braket{\testfunc | V | \phi}.
+\end{align}
+$$
+Next, we insert the trial function $\ket{\trial\chi}$ and choose the test basis of $\{\ket{\chi_i}\}_i$, which is the same as the trial basis.
+This yields a reduced weak form that is identical to Equation @eq-kohn-no-lagrange-solution.
 
-
-We aim to construct an efficient emulator for the LS equation given a short-range potential $V(\param)$ that depends smoothly on a set of parameters $\param$, such as the low-energy couplings of a chiral potential.
-Specifically, we consider here the LS equation for the scattering $K$ matrix, which reads in operator form^[
-All subsequent equations work for any boundary conditions imposed via $G_0$, although we use its principal value formulation here.
-That is, using $G_0^{(\pm)}$ and making the replacement $K \to T^{(\pm)}$ will yield an emulator for $T^{(\pm)}$. 
-]
+We have shown that the coefficients $\coeffsopt$ found via the appropriate Galerkin procedure aligns exactly with the KVP.
+However, we can go one step further and in fact derive an estimate for the $K$ matrix that is equivalent to $\mathcal{K}[\coeffsopt]$.
+By inserting the optimal coefficients into $K\ket{\phi} = V\ket{\psi}$,
 $$
-\begin{aligned}
-    K = V + V G_0 K,
-\end{aligned}
-$$ {#eq-LS}
-with the free-space Green's function operator $G_0(E_q)$ at the on-shell energy $E_q = q^2/2\mu$ and reduced mass $\mu$. 
-The energy dependence is implicit in what follows.
-We stress that using the $K$ matrix is just a convenient choice. In fact, $T^{(\pm)}$ can be emulated by imposing the associated boundary conditions on $G_0$.
-Although the @eq-LS has the formal solution
+\begin{align}
+    \braket{\phi' | K | \phi} & \approx \braket{\phi' | V | \phi} + \braket{\phi' | V | \trial\chi} \notag \\
+    & =  \braket{\phi' | V | \phi}
+    \notag \\
+    & \quad + \sum_{ij} \braket{\phi' | V | \chi_i} \bigg[ (\Omega^{-1})_{ij} \braket{\chi_j | V | \phi}\bigg],
+\end{align}
 $$
-    K = \left(\identity - V G_0 \right)^{-1} V,
-$$ {#eq-LS_formal_sol}
-evaluating @eq-LS_formal_sol in a given basis can be prohibitively slow for large-scale Monte Carlo sampling because of the fine (quadrature) grids typically necessary to obtain high-accuracy results. 
-
-Instead of solving @eq-LS directly for each sampling vector $\param$, we propose a variational approach
-starting with a trial $K$ matrix as in the RBM approach:
-$$
-    \trial K(\coeffs) = \sum_{i=1}^{\nbasis}\coeff_i K_i.
-$$ {#eq-TritzTrial}
-Here, $\{K_i \equiv K(\param_i) \}_{i=1}^{\nbasis}$ are the exact solutions of the @eq-LS for the training set $\{\param_i\}_{i=1}^{\nbasis}$, while $\{\coeff_i\}_{i=1}^{\nbasis}$ are a priori unknown coefficients.^[
-The coefficients are not normalized, \ie,  $\sum_{i=1}^{\nbasis}\coeff_{i} \neq 1$, as opposed to the Kohn variational approach in @Furnstahl:2020abp.
-]
-To determine these coefficients at each $\param$, we apply Newton's variational method [@newton2002scattering; @Rabitz:1973nm], which provides a stationary approximation to the exact scattering $K$ matrix using the functional
-$$
-\begin{split}
-    \mathcal{K}[\trial K] &= V + V G_0 \trial K + \trial K G_0 V \\
-    & \quad - \trial K G_0 \trial K + \trial K G_0 V G_0 \trial K,
-\end{split}
-$$ {#eq-LS_identity}
-given a trial matrix $\trial K$ such as the one in @eq-TritzTrial.
-The functional @eq-LS_identity is stationary about exact solutions of the LS equation, i.e., $\mathcal{K}[K+\delta K] = K + (\delta K)^2$.
-
-In practice, we determine the stationary solution of the functional @eq-LS_identity in a chosen basis and emulate the scattering $K$~matrix as the matrix element $\braket{\phi' | K | \phi}$. For example, one could choose $\ket{\phi}$ to be a plane-wave partial-wave basis $\ket{k\ell m}$ with momentum $k$ and angular momentum quanta $(l,m)$, or one could keep the angular dependence explicit via $\ket{\phi}=\ket{\mathbf{k}}$ in a single-particle basis.
-We are interested in emulating $K$ at the on-shell energy $E_q$, so then $k = k' = q$ for $\ket{\phi}$ and $\bra{\phi'}$.
-Expressed in the chosen basis, simplifying the functional @eq-LS_identity after inserting @eq-TritzTrial yields
-$$
-    \braket{\phi' | \mathcal{K}(\param, \coeffs) | \phi} = \braket{\phi' | V(\param) | \phi} + \coeffs^\trans \vec{m}(\param) - \frac{1}{2} \coeffs^\trans  M(\param) \coeffs,
-$$ {#eq-LS_identity_beta}
-with
-$$
-    m_i(\param) = \bra{\phi'} \left[K_i G_0 V(\param) + V(\param) G_0 K_i\right] \ket{\phi},
-$$ {#eq-m_vec}
-and
-$$
-\begin{aligned}
-    M_{ij}(\param) & = \bra{\phi'} [
-                       K_i G_0 K_j - K_i G_0 V(\param) G_0 K_j \notag \\
-    & \hspace{0.29in} + K_j G_0 K_i - K_j G_0 V(\param) G_0 K_i
-    ] \ket{\phi}.
-\end{aligned}
-$$ {#eq-M_mat}
-If the potential $V(\param)$ is linear in the parameter vector $\param$,
-then $\vec{m}$ and $M$
-can be efficiently reconstructed by linear combinations of matrices pre-computed during the training phase of the emulator.
-This results in substantial improvements in CPU time, *e.g.*, for chiral nucleon-nucleon (NN) interactions.
-
-By imposing the stationary condition $\textup{d} \mathcal{K} /\textup{d} \coeffs = 0$, one then finds
-$\coeffsopt(\param)$ such that $M \coeffsopt = \vec{m}$.
-Given that the optimal $\coeffsopt(\param)$ yields a trial matrix @eq-TritzTrial with an error $\delta K$, we insert $\coeffsopt$ in @eq-LS_identity_beta to obtain an error $(\delta K)^2$.
-The resulting emulator $\mathcal{K}_\star(\param) \equiv \mathcal{K}(\param, \coeffsopt)$ is then
-$$
-    \braket{\phi' | K  | \phi} \approx
-    \braket{\phi' | \mathcal{K} | \phi} =
-    \braket{\phi' | V | \phi} + \frac{1}{2} \vec{m}^\trans M^{-1} \vec{m}.
-$$ {#eq-emulator}
-Equations [-@eq-m_vec]--[-@eq-emulator] are the main expressions for emulating scattering observables
-with short-range interactions.
-We extend the implementation to the long-range Coulomb potential in Sec.~\ref{sec:coulomb}.^[
-Emulating the wave function could follow from working out $\ket{\psi(\param)} = \ket{\phi} + G_0 \mathcal{K}_\star(\param)\ket{\phi}$, where again the appropriate boundary conditions are implied by the choice of $G_0$ [@newton2002scattering; @taylor2006scattering].
-]
+with the matrix $\Omega_{ij} \equiv \braket{\chi_i | E - H | \chi_j}$, and the factors in brackets equating to $\coeff_i$ using Equation @eq-kohn-no-lagrange-solution.
+The equivalence to the KVP is demonstrated in References [@Takatsuka1981SchwingerKohnRelationship;@Takatsuka1981Scattering]}.
 
 
 ## Schwinger Emulators {#sec-schwinger}
 
-The Schwinger variational principle (SVP) is given by
+
+The Schwinger variational principle (SVP) is given by [@Takatsuka1981SchwingerKohnRelationship]
 $$
-\mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} - \braket{\trial\psi | V - V G_0 V | \trial\psi}
-$$ {#eq-schwinger-vp}
+\begin{equation} %\label{#eq-schwinger-vp}
+    \mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} - \braket{\trial\psi | V - V G_0 V | \trial\psi}.
+\end{equation}
+$${#eq-schwinger-vp}
 This too has the stationary property $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K)^2$ when $\psi$ is a wave function satisfying the LS equation.
-The SVP is known to have better numerical properties comparied to the KVP.
-For example, @Takatsuka1981SchwingerKohnRelationship showed that one can write down a variational principle of increasing order, of which the KVP is the leading order and the SVP is second order.
-Because the SVP is of higher order than the KVP, then given identical trial functions, the SVP will tend to be more accurate [@Takatsuka1981SchwingerKohnRelationship].
-However it requires matrix products with a Greens function and is quadratic in $V$, both of which complicate its evaluation.
-Furthermore, although many have claimed that it is free of anomalies, the SVP does actually suffer from anomalies as well [@ADHIKARI1991435].
-The SVP has been applied successfully in various settings in both nuclear physics and quantum chemistry, including [EXAMPLES].
-However, it has not, to our knowledge, been applied in the spirit of the RBM using a snapshot-based approach.
-
-If we follow the MOR philosophy and insert a trial function $\trial\psi$, then the stationary condition becomes
+Following the MOR philosophy and inserting a trial function $\trial\psi$, the stationary condition becomes
 $$
-W_{ij}\coeff_j = w_i
-$$ {#eq-schwinger-linear}
+\begin{equation} %\label{#eq-schwinger-linear}
+    W\coeffsopt = \vec{w},
+\end{equation}
+$${#eq-schwinger-linear}
 where
 $$
-\begin{aligned}
-W_{ij} & = \braket{\psi_i | V - V G_0 V | \psi_j} + \braket{\psi_j | V - V G_0 V | \psi_i} \\
-w_i & = \braket{\psi_i | V | \phi} + \braket{\phi | V | \psi_i}
-\end{aligned}
+%\begin{subequations}
+\begin{align}
+W_{ij} & = \braket{\psi_i | V - V G_0 V | \psi_j} \\
+w_i & = \braket{\psi_i | V | \phi},
+\end{align}
+%\end{subequations}
 $$
-for all $i = 1, \dots, \nbasis$.
+for all $i \in[ 1, \dots, \nbasis]$.
 
-This same system of equations can be determined via a Galerkin projection procedure.
-In this case, we start with the LS equation for wave functions
+The system of equations @eq-schwinger-linear can also be determined by a Galerkin projection procedure.
+In this case, we start with the LS equation for wave functions,
 $$
-\ket{\psi} = \ket{\phi} + G_0 V \ket{\psi}
+\begin{equation} %\label{#eq-ls-wave-function}
+    \ket{\psi} = \ket{\phi} + G_0 V \ket{\psi},
+\end{equation}
 $$ {#eq-ls-wave-function}
-and create a weak form by left multiplying by the test function $\ket{\zeta}$:
+and create a weak form by left-multiplying by $V(\params)$ along with the test function $\ket{\testfunc}$:
 $$
-\braket{\zeta | \psi} = \braket{\zeta | \phi} + \braket{\zeta | G_0 V | \psi}
+\begin{equation}
+    \braket{\testfunc | V | \psi} = \braket{\testfunc | V | \phi} + \braket{\testfunc | V G_0 V | \psi}.
+\end{equation}
 $$
-The weak form can then be converted to its discrete form by setting $\psi \to \trial\psi$ and enforcing orthogonality against $\ket{\zeta_i} = V \ket{\psi_i}$ for $i = 1, \dots, \nbasis$.
-This yields
-$$
-Q_{ij} \coeff_j = \braket{\psi_i | V | \phi}
-$$ {#eq-schwinger-linear-asymmetric}
-where
-$$
-Q_{ij} = \braket{\psi_i | V - V G_0 V | \psi_j}
-$$
-The symmetrized version is obtained by creating the reduced weak form starting with $\bra{\psi}$.
-Because the reduced form from $\ket{\psi}$ and $\bra{\psi}$ yield identical $\coeffs$, adding them together yields @eq-schwinger-linear.
-Thus, the coefficients found by making @eq-schwinger-vp stationary are identical to those found via the Galerkin procedure for @eq-ls-wave-function.
+The weak form can then be converted to its discrete form by setting $\psi \to \trial\psi$ and enforcing orthogonality against $\ket{\testfunc_i} = \ket{\psi_i}$ for $i \in [1, \dots, \nbasis]$.^[Note that left-multiplying by $V(\params)$ and enforcing orthogonality against $\ket{\testfunc_i} = \ket{\psi_i}$ is different than simply defining $\ket{\testfunc} = V \ket{\psi}$ and enforcing orthogonality against $\ket{\testfunc_i} = V_i \ket{\psi_i}$ because $V(\params)$ depends on $\params$. Thus, this is indeed a purely Galerkin approach, rather than a Petrov-Galerkin approach.]
+This yields then Equation @eq-schwinger-linear, and
+so  the coefficients found by making Equation @eq-schwinger-vp stationary are indeed identical to those found via the Galerkin procedure for Equation @eq-ls-wave-function.
 
-Starting from the Schwinger variational principle has the benefit of yielding an emulator not only for $\psi$, but also for $K$.
-If one had not known of the Schwinger variational principle beforehand, it may seem that the Galerkin procedure only provides an emulator for $\psi$.
-However, it turns out that one can emulate $K$ in a manner that is equivalent to the Schwinger variational principle.
-By inserting the coefficients found via @eq-schwinger-linear into the definition of $\trial\psi$, one can write
+Using the emulation of $\psi$, which is calculated by inserting the optimal coefficients obtained from Equation @eq-schwinger-linear into the definition of $\trial\psi$, we can get the associated $K$ through
 $$
-\begin{aligned}
-\braket{\phi' | K | \phi} = \braket{\phi' | V | \psi} & \approx \braket{\phi' | V | \trial\psi} \notag \\
-& = \sum_{ij} \braket{\phi' | V | \psi_i} Q^{-1}_{ij} \braket{\psi_j | V | \phi}.
-\end{aligned}
+\begin{align}
+\braket{\phi' | K | \phi} & = \braket{\phi' | V | \psi}
+\notag \\
+& \approx \braket{\phi' | V | \trial\psi} \notag \\
+& = \sum_{ij} \braket{\phi' | V | \psi_i} (W^{-1})_{ij} \braket{\psi_j | V | \phi}.
+\end{align}
 $$
-This is exactly the solution for $K$ found via the LS equation while assuming a finite-rank approximation for $V$:
+This Equation is exactly the solution for $K$ found via the LS equation while assuming a finite-rank approximation for $V$:
 $$
-V^{f} = \sum_{ij} V \ket{\psi_i} \Lambda_{ij} \bra{\psi_j} V
+\begin{equation}
+    V^{f} = \sum_{ij} V \ket{\psi_i} \Lambda_{ij} \bra{\psi_j} V,
+\end{equation}
 $$
 where
 $$
-\Lambda_{ij}^{-1} = \braket{\psi_i | V | \psi_j}.
+\begin{equation}
+    \Lambda_{ij}^{-1} = \braket{\psi_i | V | \psi_j}.
+\end{equation}
 $$
-It is known that the Schwinger variational principle yields a $K$ matrix that is equivalent to that found via a finite-rank approximation to $V$ [CITE], which shows that the Galerkin projection described in this section is identical to the Schwinger variational principle.
-
-## Origin Emulators {#sec-scattering-origin} 
+It is known that the SVP yields a $K$ matrix that is equivalent to that found via a finite-rank approximation to $V$ [@Takatsuka1981SchwingerKohnRelationship;@Takatsuka1981Scattering], which shows that the Galerkin projection described in this Section is identical to the SVP.
 
 
-::: {.content-hidden when-format="pdf"}
+## Newton Emulators {#sec-newton}
 
-## Example
 
+The Newton variational principle (NVP) for the $K$ matrix is given by [@Melendez:2021lyq;@newton2002scattering]
+$$
+\begin{equation} %\label{#eq-nvp}
+\begin{split}
+    \mathcal{K}[\trial K] &= V + V G_0 \trial K + \trial K G_0 V \\
+    & \quad - \trial K G_0 \trial K + \trial K G_0 V G_0 \trial K,
+\end{split}
+\end{equation}
+$${#eq-nvp}
+where $\trial K$ is a trial matrix.
+If desired, one could instead emulate $T^{(\pm)}$ by imposing the associated boundary conditions on $G_0$.
+Here it is assumed that we have chosen an on-shell energy $E$, which will remain implicit throughout.
+A separate emulator can be constructed for each choice of $E$.
+The functional Equation @eq-nvp is stationary about exact solutions of the LS equation, _i.e._, $\mathcal{K}[K+\delta K] = K + (\delta K)^2$.
+If we write the trial matrix as a linear combination of exact snapshots
+$$
+\begin{equation} %\label{#eq-TritzTrial}
+    \trial K = \sum_{i=1}^{\nbasis}\coeff_i K_i,
+\end{equation}
+$${#eq-TritzTrial}
+then we can construct an emulator of the $K$ matrix in the spirit of the RBM.
+
+Unlike some of the VPs discussed so far, the NVP is written here in operator form, without yet projecting it into a basis.
+This gives us the freedom to assert that any component $\braket{\phi' | \mathcal{K} | \phi}$ constructed from Equation @eq-nvp is stationary, which yields an emulator for $\braket{\phi' | K | \phi}$.
+For example, one could choose $\ket{\phi}$ to be a plane-wave partial-wave basis $\ket{k\ell m}$ with momentum $k$ and angular momentum quanta $(l,m)$, or one could keep the angular dependence explicit via $\ket{\phi}=\ket{\mathbf{k}}$ in a single-particle basis.
+Coupled channels could be emulated by choosing the angular momentum quanta differently between $\ket{\phi'}$ and $\ket{\phi}$.
+Note that the _independent_ coefficients $\coeffs$ are found for each choice of $\ket{\phi'}$ and $\ket{\phi}$.
+Thus, in the case of coupled partial waves, for example, each channel is emulated independently.
+To compute phase shifts, we must emulate $K$ at the on-shell energy $E=q^2/2\mu$ and thus, $k = k' = q$ for $\ket{\phi}$ and $\bra{\phi'}$.
+
+Expressed in the chosen basis, simplifying the functional Equation @eq-nvp after inserting Equation @eq-TritzTrial yields [@Melendez:2021lyq]
+$$
+\begin{align} %\label{#eq-LS_identity_beta}
+    \braket{\phi' | \mathcal{K}(\params, \coeffs) | \phi}
+    = &\braket{\phi' | V(\params) | \phi}
+    + \coeffs^\trans \vec{m}(\params)
+    \notag \\
+    & - \frac{1}{2} \coeffs^\trans  M(\params) \coeffs,
+\end{align}
+$${#eq-LS_identity_beta}
+with
+$$
+%\begin{subequations} %\label{#eq-nvp-reduced-mat-and-vec}
+\begin{align} %\label{#eq-m_vec}
+    m_i(\params) & = \braket{\phi' | [K_i G_0 V(\params) + V(\params) G_0 K_i] | \phi},\\
+    M_{ij}(\params) & = \braket{\phi' |
+                       [K_i G_0 K_j - K_i G_0 V(\params) G_0 K_j] | \phi} \notag \\
+                       & \quad + (i \leftrightarrow j) .
+    % & \hspace{0.29in} + K_j G_0 K_i - K_j G_0 V(\params) G_0 K_i
+    % ] \ket{\phi}.
+    %\label{#eq-M_mat}
+\end{align}
+%\end{subequations}
+$$ {#eq-nvp-reduced-mat-and-vec}
+If the potential $V(\params)$ has an affine parameter dependence,
+$\vec{m}$ and $M$
+can be efficiently constructed by linear combinations of matrices pre-computed during the emulator's offline stage, resulting
+in substantial improvements in CPU time, _e.g._, for chiral interactions.
+
+By imposing the stationary condition $\textup{d} \mathcal{K} /\textup{d} \coeffs = 0$, one then finds
+$\coeffsopt(\params)$ such that $M \coeffsopt = \vec{m}$.
+Given that the optimal $\coeffsopt(\params)$ yields a trial matrix Equation @eq-TritzTrial with an error $\delta K$, one can insert $\coeffsopt$ in Equation @eq-LS_identity_beta to obtain an error $(\delta K)^2$.
+The resulting emulator $\mathcal{K}_\star(\params) \equiv \mathcal{K}(\params, \coeffsopt)$ is then [@Melendez:2021lyq]
+$$
+\begin{equation}%\label{#eq-nvp-emulator}
+    \braket{\phi' | K  | \phi} \approx
+    \braket{\phi' | \mathcal{K} | \phi} =
+    \braket{\phi' | V | \phi} + \frac{1}{2} \vec{m}^\trans M^{-1} \vec{m}.
+\end{equation}
+$${#eq-nvp-emulator}
+
+Melendez _et al._ [@Melendez:2021lyq] studied several applications of the emulator equation @eq-nvp-emulator to short-range potentials with and without the Coulomb interaction and partial-wave coupling.
+They demonstrated that the NVP emulator has remarkable extrapolation capabilities and can quickly reproduce high-fidelity calculations of neutron-proton cross sections based on modern chiral interactions with negligible error.
+
+We repeat the derivation for the NVP emulator, but instead from the perspective of a Galerkin projection.
+For this case we will focus on the case where $\bra{\phi'} = \bra{\phi}$.
+We start with the LS equation
+$$
+\begin{equation} %\label{#eq-LS}
+    K = V + V G_0 K = V + K G_0 V ,
+\end{equation}
+$$ {#eq-LS}
+which in this context constitutes the strong form of the integral equation.
+To derive the weak form we left-multiply by $G_0$ and a test operator $\testfunc$:
+$$
+\begin{align}
+    \testfunc G_0 K & = \testfunc G_0 V + \testfunc G_0 V G_0 \trial K , \\
+    K G_0 \testfunc & = V G_0 \testfunc + \trial K G_0 V G_0 \testfunc,
+\end{align}
+$$
+where the second equation follows from transposing the first.
+By adding the two equations together and projecting to the $\bra{\phi}$ and $\ket{\phi}$ basis, we have
+$$
+\begin{align}
+    \braket{\phi | \testfunc G_0 K + K G_0 \testfunc | \phi} & = \braket{\phi | \testfunc G_0 V + V G_0 \testfunc | \phi} \notag\\
+    & \!\!\!\!\!\!\!\!\!\!\!\!\!\!\!\!\!\!\!
+    + \braket{\phi |\testfunc G_0 V G_0 \trial K + \trial K G_0 V G_0 \testfunc | \phi}.
+\end{align}
+$$
+Next, we choose the test basis $\testfunc_i = K_i$ and insert the definition of the trial matrix, Equation @eq-TritzTrial, leading to
+$$
+\begin{align}
+    M\coeffsopt = m,
+\end{align}
+$$
+with $M$ and $m$ defined in Equation @eq-nvp-reduced-mat-and-vec, again with $\bra{\phi'} = \bra{\phi}$.
+Thus, we find the same $\coeffsopt$ using either the NVP or the Galerkin projection.
+
+Given the optimal coefficients $\coeffsopt$, the emulator Equation @eq-nvp-emulator can be derived by substituting $\trial K$ into the right-hand side of Equation @eq-LS:
+$$
+\begin{align}
+    \braket{\phi' | K |\phi} & \approx \braket{\phi' | V |\phi} + \frac{1}{2} \braket{\phi' | V G_0 \trial K + \trial K G_0 V |\phi} \notag\\
+    & = \braket{\phi' | V |\phi} + \frac{1}{2} \vec{m}^\trans M^{-1} \vec{m}.
+\end{align}
+$$
+Therefore, both the NVP and Galerkin projection lead to identical emulators for the $K$ matrix.
+
+
+## Origin emulators {#sec-scattering-origin}
+
+
+The scattering emulators discussed so far are best known as VPs but are equivalent to various types of Galerkin projections of the Schrödinger or LS equation (see Table @tbl-scattering-vps-galerkin).
+However, other types of emulators can be constructed via Galerkin projections, even if they do not necessarily correspond to any well-known VP\@.
+
+Starting from the Schrödinger equation---a second-order differential equation---we must impose two boundary conditions.
+The first is that $r\psi(r)$ vanishes at $r=0$; this constraint has been automatically satisfied by our choice of trial bases in all VPs considered above
+But the second constraint is yet to be chosen.
+In the KVP, for example, the second constraint was obtained via the normalization of $r\psi(r)$ as $r\to\infty$, which led to a normalization constraint for the coefficients $\coeff_i$.
+Because the Schrödinger equation is linear and homogeneous, this normalization condition is equivalent to imposing a constraint on the derivative of $r\psi(r)$, _e.g._, evaluated at the origin.
+
+Thus, an alternative weak form for the Schrödinger equation could be constructed using only constraints at the origin.
+Let us construct a coordinate-space emulator with $(r\psi)'(0) = 1$.
+Starting from the generic weak form @eq-weak_differential, we obtain
+$$
+\begin{align}
+    \braket{\zeta | H - E | \psi} + \left.\bar\zeta \left[(r\psi)' - 1\right]\right|_{r=0} = 0,
+\end{align}
+$$
+where $\zeta$ and $\bar\zeta$ are the (independent) test functions in the domain and on the boundary, respectively, and the boundary condition is only evaluated at the origin.
+Here, we can make the Galerkin choice of (domain) test functions, where $\bra{\zeta} = \bra{\psi}$, but make a Petrov-Galerkin choice for the boundary, with $\bar\zeta(0) = 1$.
+
+Thus, the discretized weak form, from which our emulator equations follow, is given by
+$$
+\begin{align}
+    \braket{\psi_i | H - E | \psi_j}\coeff_j + \sum_j \coeff_j - 1 = 0,
+\end{align}
+$$
+where we have assumed that the trial basis is constructed such that each snapshot satisfies $(r\psi_j)'(0) = 1$.
+
+Now, let's construct an origin emulator for a specific potentials. First, we define the projection and norm matrix:
+```{python}
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import seaborn as sns
+from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
+from emulate.utils import (
+    yamaguchi_form_factor_momentum_space,
+    yamaguchi_form_factor_position_space,
+)
+from emulate import CompoundMesh, QuadratureType
+from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
+from emulate import setup_rc_params
+from emulate import NewtonEmulator
+from emulate import SeparableKohnEmulator
+from emulate import KohnLippmannSchwingerEmulator
+from emulate import BoundaryCondition
+setup_rc_params()
+sns.set_palette('pastel')
+from scipy.integrate import odeint
+def compute_U_vector(r, kappas):
+    return np.stack([np.exp(-kappa * r**2) for kappa in kappas], axis=-1)
+def compute_U(r, params, kappas):
+    return np.sum([p * np.exp(-kappa * r**2) for kappa, p in zip(kappas, params)], axis=0)
+def solve_schrodinger(y, r, params, kappas, k):
+    psi, d_psi = y
+    U = compute_U(r, params, kappas)
+    d2_psi = U * psi - k**2 * psi
+    return [d_psi, d2_psi]
+n_intervals = 10
+nodes = np.linspace(0, 10, n_intervals)
+n_points = 50 * np.ones(n_intervals, dtype=int)
+mesh = CompoundMesh(nodes, n_points)
+# Use the same mesh for k and r
+k, dk = mesh.x, mesh.w
+r, dr = mesh.x, mesh.w
+r_grid = np.linspace(0, 10, 1001)
+q_cm = 1
+KAPPAS = [0.5, 1]
+rng = np.random.default_rng(1)
+p_train = rng.uniform(-5, 5, (6, len(KAPPAS)))
+psi_train = []
+d_psi_train = []
+d2_psi_train = []
+initial_values = np.array([0, 1])
+for p_i in p_train:
+    psi_i, d_psi_i = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_i, KAPPAS, q_cm), printmessg=True, atol=1e-13, rtol=1e-11).T
+    psi_train.append(psi_i)
+    d_psi_train.append(d_psi_i)
+    d2_psi_i = solve_schrodinger([psi_i, d_psi_i], r, p_i, KAPPAS, q_cm)[-1]
+    d2_psi_train.append(d2_psi_i)
+psi_train = np.array(psi_train)
+d_psi_train = np.array(d_psi_train)
+d2_psi_train = np.array(d2_psi_train)
+# fig, ax = plt.subplots(figsize=(3.4, 3))
+# ax.plot(r, psi_train.T, c='k')
+# ax.plot(r, d_psi_train.T, ls="--", c='b')
+# ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
+# ax.axhline(0, 1, 0, c='k', lw=0.8, zorder=-1)
+# ax.set_xlim(0, 10)
+# ax.set_ylim(-5, 5)
+U1 = compute_U_vector(r, KAPPAS)
+nabla_proj = np.einsum("ir,jr->ij", dr * psi_train, d2_psi_train)
+U_proj = np.einsum("ir,rp,jr->ijp", dr * psi_train, U1, psi_train)
+norm_proj = np.einsum("ir,jr->ij", dr * psi_train, psi_train)
+# plt.show()
+```
+
+Next, we apply the emulator to emulate the radial Schrödinger equation in a test case:
+```{python}
+#| label: fig-wave-functions-origin
+#| fig-cap: "Results for the scattering emulator with origin boundary conditions. Six basis functions are shown as gray lines, and the exact wave function as a black line. Each of the basis functions and the emulated wave function satisfy the constraints at the origin."
+bc_idx = 0
+# Use a Petrov-Galerkin approach for the test functions on the boundary. Use d_psi.
+BC_norm_proj = d_psi_train[:, bc_idx] * d_psi_train[:, bc_idx].T
+b = d_psi_train[:, bc_idx]
+#print(BC_norm_proj, BC_norm_proj.shape)
+p_valid = np.random.default_rng(29).uniform(-5, 5, len(KAPPAS))
+R0 = - nabla_proj - q_cm**2 * norm_proj + BC_norm_proj
+# R0 += 1e-15 * np.eye(R0.shape[0])
+R1 = U_proj
+psi_exact, _ = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_valid, KAPPAS, q_cm)).T
+coeff = np.linalg.solve(R0 + R1 @ p_valid, b)
+psi_valid = coeff @ psi_train
+fig, axes = plt.subplots(2, 1, figsize=(3.3, 3), sharex=True)
+r_mask = r <= 10
+ax = axes.ravel()[0]
+ax.plot(r[r_mask], psi_train[0, r_mask].T, **BASIS_KWARGS, label="Train")
+ax.plot(r[r_mask], psi_train[:, r_mask].T, **BASIS_KWARGS)
+# ax.plot(r, d_psi_train.T, ls="--", c='b')
+# ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
+ax.plot(r[r_mask], psi_exact[r_mask], **FULL_KWARGS, label="Exact")
+ax.plot(r[r_mask], psi_valid[r_mask], **PRED_KWARGS, label="Emulator")
+ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
+ax.set_xlim(0, 10)
+# ax.set_xlabel("$r$")
+ax.set_ylabel("$r\psi(r)$")
+# ax.legend()
+ax.legend(loc="lower left", bbox_to_anchor=(0, 1.03, 1, 1), mode="expand", borderaxespad=0, ncol=3)
+# ax.set_title("Galerkin approach for $u(r)$ with Minnesota potential")
+ax = axes.ravel()[1]
+ax.semilogy(r[r_mask], np.abs(psi_exact[r_mask]-psi_valid[r_mask]), label="Abs.\ Residual")
+ax.set_xlabel("$r$")
+ax.legend()
+plt.show()
+```
+
+As an example, we show the output of such an emulator in Figure @fig-wave-functions-origin.
+Here, the potential is given by a sum of two Gaussians,
+$$
+\begin{equation}
+    V(r, \params) = \theta_1 \exp(-\kappa_1 r^2) + \theta_2 \exp(-\kappa_2 r^2),
+\end{equation}
+$$
+with $\kappa_1 = 0.5$ and $\kappa_2 = 1$.
+The six training and one validation parameters are selected randomly from a uniform distribution in the range of $[-5, 5]$.
+To obtain the snapshots, the partial-wave decomposed radial Schrödinger equation can be expressed as the system of coupled first-order differential equations,
+$$
+\begin{equation}
+\begin{pmatrix}
+    y'_0(r)\\
+    y'_1(r)
+\end{pmatrix} =
+\begin{pmatrix}
+    \psi'(r) \\
+    \frac{\ell(\ell+1)}{r^2} + 2\mu \left[V(r; \params_i)  - E \right] \psi(r)
+\end{pmatrix},
+\end{equation}
+$$
+and numerically solved with Runge-Kutta methods.
+For more details on solving the radial Schrödinger equation and matching the solutions to the asymptotic boundary condition @eq-psi-normalization, see, _e.g._, Reference [@thompson_nunes_2009].
+As we can see from Figure @fig-wave-functions-origin, each training wave function and emulated wave function has matching boundary conditions at the origin, and the discrepancy from the true wave function is less than $10^{-3}$.
+
+
+
+## General Kohn Variational Principle {#sec-kohn-general}
+
+
+The KVP functional given in Equation @eq-kohn-psi can be extended to include arbitrary boundary conditions [@Drischler:2021qoy,@Lucchese:1989zz].
+For simplicity, we demonstrate the general KVP by using a single-channel example in coordinate space, but this work also holds for two-body scattering in momentum space (see Reference [@KVP_vs_NVP:2022]).
+Let us consider short-range potentials $V(\params)$ in coordinate space and partial-wave decomposed into an uncoupled channel with angular momentum $\ell$.
+The radial wave functions will be the free-space solutions^[We follow the conventions for scattering matrices in References. [@taylor2006scattering,@Morrison:2007].]
+of the general form
+$$
+\begin{align} %\label{#eq-free-sol-coordinate}
+\psi_{\ell,E}^{\text{(free)}}(r) =  \bar{\psi}_{\ell,E}^{\text{(0,free)}}(r) + L_{\ell,E} \, \bar{\psi}_{\ell,E}^{\text{(1,free)}}(r) \, ,
+\end{align}
+$$ {#eq-free-sol-coordinate}
+where
+$$
+\begin{equation}%\label{#eq-freeSolMatch}
+\begin{pmatrix}
+    \bar{\psi}_{\ell,E}^{\text{(0,free)}}(r)\\
+    \bar{\psi}_{\ell,E}^{\text{(1,free)}}(r)
+\end{pmatrix} =
+\mathcal{N}^{-1}
+\begin{pmatrix}
+    u_{00} & u_{01}\\
+    u_{10} & u_{11}\\
+\end{pmatrix}
+\begin{pmatrix}
+     j_\ell(qr) \\
+    \eta_\ell(qr)
+\end{pmatrix} \,,
+\end{equation}
+$$ {#eq-freeSolMatch}
+with $q = \sqrt{2\mu E}$ and an arbitrary normalization constant $\mathcal{N} \neq 0$.
+Here, $L_{\ell, E}$ is a generic scattering matrix that is determined by the boundary condition, as parametrized by the nonsingular matrix $u$.
+
+We now define $\genkvp$ as a general functional for the generic $L$-matrix in Equation @eq-free-sol-coordinate [@PhysRevA.40.6879;@Drischler:2021qoy;@KVP_vs_NVP:2022],
+$$
+\begin{equation} %\label{#eq-kvp-general}
+    \mathcal{L}[\psi] = L + \frac{\mathcal{N}}{\mathrm{det} \, \umatrix} \braket{\psi_{\umatrix} | [H - E] | \psi_{\umatrix}}.
+\end{equation}
+$${#eq-kvp-general}
+With Equation @eq-kohn-psi, one can follow the process described in Section @sec-kohn-lagrange to emulate any asympototic boundary condition.
+Obtaining an emulator prediction for different boundary conditions does not mean that Equation @eq-kvp-general has to be solve multiple times.
+In fact, it only needs to be solved once and each term in the functional _rescaled_ using the relations derived in Reference [@Drischler:2021qoy]:
+$$
+\begin{align}
+    \dU^{(\umatrix')}
+    &=
+    C^{'-1}(L_i) \, C^{'-1} (L_j) \frac{\mathrm{det} \, \umatrix}{\mathrm{det} \, \umatrix'} \dU^{(\umatrix)},  %\label{#eq-kohn_rescaling_dU}
+\end{align}
+$$ {#eq-kohn_rescaling_dU}
+$$
+\begin{align}
+    C'(L)
+    &= \frac{\mathrm{det} \, \umatrix}{\mathrm{det} \, \umatrix'} \frac{u'_{11} - u'_{10} K(L)}{u_{11} - u_{10} K(L)}. %\label{#eq-kohn_c_coeff}
+\end{align}
+$$ {#eq-kohn_c_coeff}
+The non-primed terms refer to the initial state and primed terms refer to the final state (explained below).
+The snapshots used to train the emulator in the offline stage are transformed using the M{\"o}bius (or linear fractional) transform
+$$
+\begin{align} %\label{#eq-mobius_transform}
+    L'(L) =  \frac{-u'_{01}+u'_{00} K(L)}{u'_{11} -u'_{10}K(L)}.
+\end{align}
+$$ {#eq-mobius_transform}
+
+Let us consider solving Equation @eq-kvp-general using the $K$-matrix boundary condition, but then wanting a prediction for the $T$-matrix. We would first
+rescale $\dU$ using Eq @eq-kohn_rescaling_dU. Here, $\umatrix$ and $\umatrix'$ would correspond to $\umatrix_K$ and $\umatrix_T$, respectively, given by
+$$
+\begin{equation} %\label{#eq-u_matrices}
+    \umatrix_K =
+    \begin{bmatrix}
+        1 & 0 \\
+        0 & 1
+    \end{bmatrix},
+    \quad
+    \umatrix_T =
+    \begin{bmatrix}
+        1 & 0 \\
+        i & 1
+    \end{bmatrix}.
+\end{equation}
+$$ {#eq-u_matrices}
+Once $\dU^{(\umatrix')}$ is calculated and the snapshots transformed from the $K$- to the $T$-matrix according to Equation @eq-mobius_transform, we apply Equation @eq-kohn-psi-coeff-solution to obtain the emulator prediction for the $T$-matrix. One can also inverse transform the new emulated solution back to its $K$-matrix equivalent by using
+$$
+\begin{align}
+    K(L) = \frac{u_{01} + u_{11} L}{u_{00} + u_{10} L} .
+\end{align}
+$$
+
+Variational principles may not always provide a (unique) stationary approximation, causing the appearance of spurious singularities known as Kohn (or Schwartz) anomalies [@Drischler:2021qoy;@Lucchese:1989zz;@nesbet1980variational], which can render applications of VPs ineffective; especially for sampling of a model's parameter space.
+The appearance of these anomalies depend on the parameters $\params$ used to train the emulator in the offline stage, the scattering energy, and the evaluation set used in the online stage.
+However, Drischler _et al._ [@Drischler:2021qoy] demonstrated that a KVP-based emulator that simultaneously emulates an array of KVPs with different boundary conditions can be used to systematically detect and remove these anomalies.
+The anomalies are detected by assessing the consistency of the emulated results and, when detected, mitigated by adapting the emulator's training points to shift the anomaly's position in the parameter space.
+The basic idea is general and can be applied to other emulators, including the NVP-based emulator discussed in Section @sec-newton, as long as multiple scattering boundary conditions can be emulated independently and efficiently.
+
+
+### Generalization to coupled systems {#sec-kohn-coupled}
+
+Following Garcia _et al._ [@KVP_vs_NVP:2022], let us now extend the generalized KVP in Section @sec-kohn-general to coupled systems, which could be coupled partial-wave or reaction channels.
+The stationary approximation to the high-fidelity $L$-matrix then reads
+$$
+\begin{equation}%\label{#eq-kvp_reduced_coupled}
+    \mathcal{L}^{ss'} = \beta_i L_i^{ss'} + \frac{1}{2} \beta_i \dU_{ij}^{ss'}\beta_j,
+\end{equation}
+$${#eq-kvp_reduced_coupled}
+where
+$$
+\begin{align}
+    \dU_{ij}^{ss'} & \equiv \frac{1}{\mathrm{det} \, \umatrix}
+    \big[
+    \braket{\psi_i^{st} | [H(\params) - E]^{tt'} | \psi_j^{t's'}} \notag \\
+    %+ (i \leftrightarrow j) \notag
+    & \qquad \quad \, + \braket{\psi_j^{st} | [H(\params) - E]^{tt'} | \psi_i^{t's'}} \notag
+    \big]
+    \notag\\
+    %& \quad +  \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
+    & = \frac{1}{\mathrm{det} \, \umatrix}
+    \big[
+    \braket{\psi_i^{st} | [V(\params) - V_j]^{tt'} | \psi_j^{t's'}} \notag \\
+    %+ (i \leftrightarrow j) \notag
+    & \qquad \quad \, + \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}} \notag
+    \big], \notag\\
+    %& \quad +  \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}},
+    %\label{#eq-delta_u_tilde_coupled}
+\end{align}
+$${#eq-delta_u_tilde_coupled}
+with $s$ and $s'$ corresponding to the entrance and exit channels and $t$ and $t'$ are summed over the available channels.
+The uncoupled case is retrieved by replacing $ss' \to \ell$.
+Solving for $\coeffs$ now proceeds as in Equation @eq-kohn-psi-coeff-solution but for a specific choice of $ss'$ channels.
+Note that the coefficients $\coeffs$ are to be determined _independently_ for each $ss'$ pair.
+
+This independence can be understood as follows.
+We note that $\mathcal{K}^{ss'}$ is independently stationary for each $ss'$ pair.
+This becomes apparent when considering how one would solve for the coefficients in the case there are two uncoupled channels, where $ss' \to \ell$ in Equations @eq-kvp_reduced_coupled and @eq-delta_u_tilde_coupled.
+Here, each partial wave is completely independent of one another and thus it would not make sense to mix the VPs or the $\coeff$ across values of $\ell$.
+Without loss of generality, let the two channels be labeled as $\ell = 0$ and $\ell = 1$, and let $\coeffs^{(0)}$ and $\coeffs^{(1)}$ denote the independent sets of coefficients found by making each channel's KVP stationary.
+Now consider adiabatically turning on a coupling between two partial waves: the coefficients $\coeffs^{(0)}$ and $\coeffs^{(1)}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, which one could label as $\coeffs^{(01)}$.
+Thus, even in the coupled case, there are multiple independent sets of coefficients to determine: one for each pair of incoming and outgoing channels.
+
+An alternative way to understand how the $\coeffs$ enter in the coupled case is to instead start with the Schrödinger equation and enforce (Petrov-)Galerkin orthogonalization as in Section @sec-kohn-lagrange.
+For the diagonal channels, the test functions are chosen to have the same outgoing channel as the trial functions, making the procedure of standard Galerkin form.
+But for the off-diagonal channels, the test functions have a different outgoing channel ($s$) than the trial functions ($s'$).
+Because the basis of test functions differs from the basis of the trial function, this is instead a Petrov--Galerkin approach.
+The linear equations to be solved are exactly what one would obtain from enforcing stationarity in Equation @eq-kvp_reduced_coupled for each $ss'$ independently.
+
+
+
+### Generalizations to higher-body systems {#sec-higher-body-continuum}
+
+
+The variational emulators for two-body scattering described so far can be generalized to higher-body scattering.
+In fact, the KVP, as a powerful method for solving scattering problems, has been applied in developing high-fidelity solvers (as opposed to a KVP-based emulator) for studying three- and four-nucleon systems (_e.g._, nucleon-deuteron elastic scattering below and above the deuteron break-up threshold) [@Marcucci:2019hml, @Kievsky:2008es].^[The other high-fidelity solvers in this context solve problems in momentum or coordinate space based on the Faddeev formalism [@Gloeckle:1995jg;@Deltuva:2012kt;@Lazauskas:2019rfb].]
+It is then natural to combine the KVP with the variational emulation strategy to develop fast \& accurate emulators beyond just two-body scattering.
+
+Here, we follow Zhang \& Furnstahl [@Zhang:2021jmi] who developed KVP-based emulators for three-body systems.
+We focus on systems of three identical spinless bosons, particularly the elastic scattering between boson and two-boson bound state in the channel without any relative angular momenta and below the bound state's break-up threshold.
+The corresponding scattering $S$-matrix can be estimated via a variational functional that resembles
+Equation @eq-kvp-general in the two-body case:
+$$
+\begin{equation}%\label{#eq-three-body-elastic-scattering-KVP-functional}
+ \mathcal{S}[\trial\psi] = S - \frac{i}{3\mathcal{N}^2}  \braket{\trial\psi | [H - E] | \trial\psi} .
+\end{equation}
+$$ {#eq-three-body-elastic-scattering-KVP-functional}
+Here, $S$ is the $S$-matrix associated with the trial three-body wave function $|\trial\psi\rangle$, $H$ and $E$ the full Hamiltonian and energy, respectively.
+The trial wave function has the following asymptotic behavior:
+$$
+\begin{equation} %\label{#eq-WFbelowbreakupAsym}
+\langle {R}_1, {r}_1|\trial\psi\rangle
+      \overset{R_1\to \infty}{\longrightarrow} \frac{\mathcal{N}}{\sqrt{v} } \frac{u_B({r}_1) }{ r_1 R_1}
+     \bigl(-e^{-i P R_1} + S\, e^{i P R_1} \bigr)  ,
+\end{equation}
+$$ {#eq-WFbelowbreakupAsym}
+with $R_1, r_1$ as one of three different Jacobi coordinate sets; $v$ and $P$ as the relative velocity and momentum between the scattering particles, $\mathcal{N}$ the normalization constant that also appeared in Equation @eq-three-body-elastic-scattering-KVP-functional, and $u_B(r_1)$ the radial wave function of the two-body bound state.
+
+The emulation procedure is generally similar to those for two-body emulations.
+We first collect high-fidelity calculations of $\ket{\trial\psi_i}$ at various points in the Hamiltonian's parameter space during the offline (_i.e._, training) stage and then use these snapshots as the basis to construct the trial solution (see Equation @eq-trial_general_subeq) to be used in the variational functional during the online emulation stage.
+A similar set of the low-dimensional linear equations as in Equations @eq-kohn-psi-coeff-solution can be derived to fix the weights $\beta_i$.
+The variational functional with these inputs produce accurate results for the $S$ matrix at the emulation points.
+This is all straightforward if we vary only the three-body interactions in $H(\params)$ when exploring its parameter space.
+If the two-body interactions are also changed, the two-body bound states of those snapshots are different among themselves and therefore the trial wave functions based on Equation @eq-trial_general_subeq fails to satisfy the asymptotic behavior described in Equation @eq-WFbelowbreakupAsym.
+In Reference [@Zhang:2021jmi], proper modifications were applied to the constructions of the trial wave functions to satisfy the asymptotic condition.
+The resulting emulator is again a low-dimensional equation system, but the projected $ \subspace{H}(\params)$ matrices and the $\dU$ matrices lose the affine structure as needed for fast emulation (see Equation @eq-Htilde_affine).
+To mitigate this issue, the GP emulation method was employed to interpolate and extrapolate the $\dU$'s matrix elements in the parameter space (note that this dependence is much smoother than the parameter dependence of the observables).
+Other hyperreduction approaches [@Benner20201] could also be explored in this context.
+
+The results in Reference [@Zhang:2021jmi] are encouraging: the time cost for emulating three-boson scattering is on the order of milliseconds (on a laptop), while the emulation's relative errors vary from $10^{-13}$ to $10^{-4}$ depending on the case.
+It is straightforward to generalize it to elastic scattering above the break-up threshold, but more studies need to be done for emulating the break-up processes and even higher-body systems.
+Of course, the Fermi statistics, spin and isospin degrees of freedom, and partial waves beyond the s-wave need to be included to realize emulation for realistic three and higher-body scatterings (_e.g._ for three-nucleon systems).
+
+
+
+## A scattering example {#sec-scattering-example}
+
+
+We have covered the reduced-order models that can be constructed from the Kohn, Schwinger, and Newton VPs, and now we put them into action.
+This example is given in the context of a rank-$n$ separable potential where simple analytic forms are available for the snapshots.
+This provides a sandbox to explore many aspects of the RBM for quantum scattering without the complicating details of more realistic systems.
+All of the source code that generates the results shown here is available to explore on the companion website [@companionwebsite].
+
+Separable potentials lead to simple formulas for the $K$ matrix and the scattering wave function [@Tabakin:1969mr].
+A rank-$n$ separable potential in momentum space is given by
+$$
+\begin{align} %\label{#eq-separable-potential}
+    V_{\ell} = \sum_{ij}^n \ket{v_i^\ell} \Lambda_{ij} \bra{v_j^\ell} ,
+\end{align}
+$$ {#eq-separable-potential}
+where $\Lambda_{ij} = \Lambda_{ji}$ are the coefficients of the potential that will be varied during emulation.
+For simplicity, we consider here only $s$-wave scattering (_i.e._, $\ell = 0$).
+The potential @eq-separable-potential leads to an affine structure that lends itself to the offline-online decomposition discussed in Section @sec-model-reduction.
+From the potential @eq-separable-potential, simple expressions for $K$ and $\psi$ can be derived.
+For instance, the $K$ matrix is given in operator form by
+$$
+\begin{align}
+    % \braket{\mathbf{p}' | K | \mathbf{p}} = \braket{\mathbf{p}' | v_i} \Lambda_{ij}[\identity - J \Lambda]^{-1}_{jk} \braket{v_k | \mathbf{p}}
+    K = \sum_{ijk}^n \ket{v_i} \Lambda_{ij}[\identity - J \Lambda]^{-1}_{jk} \bra{v_k} ,
+\end{align}
+$$
+with the identity matrix $\identity$ and the matrix
+$$
+\begin{align}
+    J_{ij} \equiv \braket{v_i | G_0 | v_j},
+\end{align}
+$$
+where the Green's function $G_0$ implicitly depends on the on-shell energy $E$.
+Thus, it follows that $K$ is separable if $V$ is separable.
+
+We choose to study the Yamaguchi potential [@Gobel:2019jba]
+$$
+\begin{align}
+    \braket{p|v_i^\ell} \equiv v_i^\ell(p) = \frac{p^{\ell}}{(p^2 + b_i^2)^{\ell+1}} %\label{#eq-yamaguchi}
+\end{align}
+$$ {#eq-yamaguchi}
+with $\ell=0$ and assume a rank-2 potential with $b_i = [2, 4]$ fm$^{-1}$ and $2\mu = 1$.
+Five sets of training parameters $\{\Lambda_{00}, \Lambda_{01}, \Lambda_{11}\}$ are sampled randomly from a uniform distribution in $[-50, 50]$ MeV.
+
+We have created Python classes `NewtonEmulator`, `SeparableKohnEmulator`, `KohnLippmannSchwingerEmulator`, `BoundaryCondition`, `AlternateKohnEmulator` to experiment with a range of of different emulators. Let's us import them:
 ```{python}
 %load_ext autoreload
 %autoreload 2
 %matplotlib inline
 %config InlineBackend.print_figure_kwargs = {"bbox_inches": None, "facecolor": "w"}
-
-
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
-
 from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
 from emulate.utils import (
     yamaguchi_form_factor_momentum_space,
@@ -523,17 +913,13 @@ from emulate import SeparableKohnEmulator
 from emulate import KohnLippmannSchwingerEmulator
 from emulate import BoundaryCondition
 from emulate.kvp import AlternateKohnEmulator
-
 setup_rc_params()
 sns.set_palette('pastel')
 ```
 
-
-
-
+Next, define the parameters of the problem, which can be readily changed:
 ```{python}
 #| tags: [parameters]
-
 hbar2_over_2mu = 1
 nugget = 1e-6
 n_train = 5
@@ -541,22 +927,20 @@ ell = 0
 ```
 
 
-Create a compound mesh object for Gaussian quadrature needed below.
+Next, we create a compound mesh object for Gaussian quadrature needed for the following steps:
 ```{python}
 n_intervals = 10
 nodes = np.linspace(0, 30, n_intervals)
 n_points = 80 * np.ones(n_intervals, dtype=int)
 mesh = CompoundMesh(nodes, n_points)
-
 # Use the same mesh for k and r
 k, dk = mesh.x, mesh.w
 r, dr = mesh.x, mesh.w
 ```
 
 
-
+The following code trains the `SeparableKohnEmulator`:
 ```{python}
-
 # betas = [2, 3]
 betas = [2, 4]
 # q_cm = np.array([0.5, 1, 2])
@@ -564,7 +948,6 @@ betas = [2, 4]
 # q_cm = t_cm_to_q_cm(t_cm, MN, MN)
 # q_cm = np.linspace(0.1, 2, 101)
 q_cm = np.round(np.arange(0.1, 2.01, 0.01), 2)
-
 f_k = np.array(
     [
         yamaguchi_form_factor_momentum_space(k=k, beta=beta, ell=ell, hbar2_over_2mu=hbar2_over_2mu)
@@ -577,8 +960,6 @@ f_r = np.array(
         for beta in betas
     ]
 ) * r
-
-
 kohn = SeparableKohnEmulator(
     v_r=f_r,
     r=r,
@@ -591,13 +972,11 @@ kohn = SeparableKohnEmulator(
     nugget=nugget,
     use_lagrange_multiplier=False,
 )
-
 # rng = np.random.default_rng(13)
 rng = np.random.default_rng(11)
 params_dimension = len(betas) * (len(betas) + 1) // 2
 # p_train = rng.uniform(-50, 50, (n_train, params_dimension))
 # p_valid = rng.uniform(-50, 50, params_dimension)
-
 # p_train = 1e2*rng.uniform(-5, 5, (n_train, params_dimension))
 # p_valid = 1e2*rng.uniform(-5, 5, params_dimension)
 # p_train = 1e0*rng.uniform(-10, 10, (n_train, params_dimension))
@@ -605,10 +984,10 @@ params_dimension = len(betas) * (len(betas) + 1) // 2
 p_train = 1e1*rng.uniform(-5, 5, (n_train, params_dimension))
 # p_valid = 1e1*rng.uniform(-5, 5, params_dimension)
 p_valid = np.array([-30, 0, 20])
-
 kohn.fit(p_train)
 ```
 
+Next, we train the `NewtonEmulator`:
 ```{python}
 n_form_factors = len(f_k)
 V_k_yama = []
@@ -620,7 +999,6 @@ for i in range(n_form_factors):
             V_k_yama.append(f_k[i][:, None] * f_k[j])
 V_k_yama = np.dstack(V_k_yama)
 V_0_yama = np.zeros(V_k_yama.shape[:-1])
-
 newton_yama = NewtonEmulator(
     V0=V_0_yama,
     V1=V_k_yama,
@@ -633,6 +1011,7 @@ newton_yama = NewtonEmulator(
 newton_yama.fit(p_train)
 ```
 
+Then, we train the `KohnLippmannSchwingerEmulator`:
 ```{python}
 V1_r_yama = []
 for i in range(n_form_factors):
@@ -643,25 +1022,19 @@ for i in range(n_form_factors):
             V1_r_yama.append(f_r[i][:, None] * f_r[j])
 V1_r_yama = np.dstack(V1_r_yama)
 V0_r_yama = np.zeros(V1_r_yama.shape[:-1])
-
-
 ls_kohn = KohnLippmannSchwingerEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, NVP=newton_yama, is_local=False, ell=0)
 ls_kohn.fit(p_train)
 ls_coeff = ls_kohn.coefficients(p_valid)
-
-
 # alt_kohn = AlternateKohnEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, q_cm=q_cm, NVP=newton_yama, is_local=False, ell=0)
 # alt_kohn.fit(p_train)
 # alt_coeff = alt_kohn.coefficients(p_valid)
 # print(alt_coeff)
 ```
 
-
+We these trained emulators in place, let's use the KVP and NVP to emulate the phase shifts associated with the Yamaguchi potenital @eq-yamaguchi:
 ```{python}
-#| label: fig-phase-shifts-yamaguchi
-#| fig-cap: "Phase shifts constructed via various scattering emulators"
-
-
+#| label: fig-yamaguchi_phase_shifts
+#| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The training set is given by the five gray lines."
 p_valid = np.array([-30, 0, 20])
 # p_valid = np.array([20, 0, 0])
 K_yama_nvp = newton_yama.predict(p_valid)
@@ -669,14 +1042,11 @@ K_yama_nvp = newton_yama.predict(p_valid)
 K_yama_kvp = ls_kohn.predict(p_valid)
 K_yama_exact = newton_yama.predict(p_valid, full_space=True)
 K_yama_train = kohn.K_train
-
 phase_yama_nvp = newton_yama.phase_shifts(K_yama_nvp)
 phase_yama_kvp = newton_yama.phase_shifts(K_yama_kvp)
 phase_yama_exact = newton_yama.phase_shifts(K_yama_exact)
 phase_yama_train = newton_yama.phase_shifts(K_yama_train)
-
 fig, axes = plt.subplots(2, 1, figsize=(3.3, 3.5), sharex=True)
-
 ax = axes.ravel()[0]
 ax.plot(q_cm, phase_yama_train[0], **BASIS_KWARGS, label="Basis")
 ax.plot(q_cm, phase_yama_train.T, **BASIS_KWARGS)
@@ -688,8 +1058,6 @@ ax.set_title("Yamaguchi Potential Phase Shifts")
 ax.legend(loc="upper right")
 ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
 # ax.set_ylim(-5, 5)
-
-
 ax = axes.ravel()[1]
 ax.semilogy(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
 ax.semilogy(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP")
@@ -697,20 +1065,24 @@ ax.legend()
 ax.set_ylabel("Absolute Residual [deg]")
 # ax.set_xlabel(r"$q_{\mathrm{cm}}$ [fm$^{-1}$]")
 ax.set_xlabel(r"$q$ [fm$^{-1}$]")
-
 # fig.savefig("figures/phase_shifts_yamaguchi")
 plt.show()
 ```
 
+Figure @fig-yamaguchi_phase_shifts shows the phase shifts and the absolute residuals for the Yamaguchi potential @eq-yamaguchi.
+The top panel depicts the high-fidelity solution (solid black curve) and the emulator results (dots) with blue representing the NVP emulator and orange the KVP emulator.
+In gray we show the basis states used to train the emulator in the offline stage.
+The bottom panel shows the absolute residuals for both emulators with the same color scheme as the top panel.
+We can see that the NVP emulator accurately reproduces the high-fidelity solution, while the KVP emulator is not as accurate and diverges from the simulator $q \approx 1.5 \, \text{fm}^{-1}$.
 
+
+Next, we investigate the emulated wavefunctions for these two emulators. For convenience, we define the helper function `plot_wave_functions()` to plot the results in a figure:
 ```{python}
 def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
     u_train = psi_train * r
     u_exact = psi_exact * r
     u_valid = psi_emulator * r
-
     u_resid = np.abs(u_exact - u_valid)
-
     for i, q_i in enumerate(q_cm):
         max_u_i = max(
             u_train[i].max(),
@@ -720,14 +1092,10 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
         u_train[i] = u_train[i] / max_u_i
         u_exact[i] = u_exact[i] / max_u_i
         u_valid[i] = u_valid[i] / max_u_i
-
-
     offset = -2.2
     y_ticks = []
-
     fig, axes = plt.subplots(2, 1, figsize=(3.3, 3.5), sharex=True)
     ax = axes.ravel()[0]
-
     ax.plot(r, u_train[0, 0, :], **BASIS_KWARGS, label="Basis")
     ax.plot(r, u_exact[0], **FULL_KWARGS, label="Exact")
     ax.plot(r, u_valid[0], **PRED_KWARGS, label="Emulator", c='w')
@@ -737,7 +1105,6 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
         ax.axhline(y_i, 0, 1, c='k', lw=0.8, zorder=-1)
         # ax.plot(r[r_mask], u_train[i, 0].T + i * offset, c=f"C{i}", label=fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", zorder=0)
         ax.plot(r, u_train[i].T + y_i, **BASIS_KWARGS)
-
         ax.plot(r, u_exact[i] + y_i, **FULL_KWARGS)
         ax.plot(r, u_valid[i] + y_i, **PRED_KWARGS)
         # ax.text(-0.2, y_i-0.3, fr"$q_{{ \mathrm{{cm}} }} = {q_i}$", ha="left", va="top", bbox=dict(boxstyle="round", fc="0.95", ec=f"C{i}"))
@@ -751,8 +1118,6 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
             bbox=dict(boxstyle="round", fc="w", ec=f"C{i}", lw=0.5),
             fontsize=8
         )
-
-
     ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=-1)
     # ax.legend(loc="upper right")
     ax.legend(loc="lower left", bbox_to_anchor=(0, 1.03, 1, 1), mode="expand", borderaxespad=0, ncol=3)
@@ -761,7 +1126,6 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
     ax.set_yticks(y_ticks)
     ax.set_yticklabels([None for _ in y_ticks])
     # ax.set_title("Radial wave functions for the Yamaguchi potential")
-
     ax = axes.ravel()[1]
     for i, q_i in enumerate(q_cm):
         ax.semilogy(r, u_resid[i], label=fr"$q = {q_i}$", ls=["-", "--", ":"][i])
@@ -772,15 +1136,13 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
     return fig, axes
 ```
 
-
-
+Now, we apply `plot_wave_functions()` to plot the emulated wave functions and their residuals relative to the high-fidelity calculations:
 ```{python}
-#| label: fig-wave-functions-yamaguchi
-#| fig-cap: "Wave functions constructed via the KVP."
+#| label: fig-yamaguchi_wave_functions
+#| fig-cap: "Wave functions (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi. The top panel legend description is similar to Figure @fig-yamaguchi_phase_shifts, but for three different values of $q$ in units of fm$^{-1}$. The bottom panel shows the relative residuals of the three values previously mentioned."
 psi_train_yama = kohn.psi_train
 psi_exact_yama = kohn.predict_wave_function(p_valid)
 psi_valid_yama = kohn.emulate_wave_function(p_valid)
-
 r_mask = r <= 10
 q_mask = np.isin(q_cm, [0.5, 1,  2])
 fig, axes = plot_wave_functions(
@@ -791,13 +1153,14 @@ fig, axes = plot_wave_functions(
     q_cm=q_cm[q_mask]
 )
 # axes[0].set_title("Yamaguchi Radial Wave Functions")
-
 # fig.savefig("figures/wave_functions_yamaguchi")
 plt.show()
 ```
 
+Figure @fig-yamaguchi_wave_functions shows the high-fidelity (solid black line), emulated (dots), and basis (solid gray line) wave functions for three values of $q$ with their absolute residuals.
+The emulator reproduces the high-fidelity solution at all three values of $q$, with $q = 2.0 \, \text{fm}^{-1}$ having the smallest residual.
 
-
+In addition, we make the same comparision between the NVP and KVP emulators for a different potential. We choose the ${}^1S_0$ Minnesota potential:
 ```{python}
 from emulate import hbar_c, MN
 from emulate import t_cm_to_q_cm
@@ -810,28 +1173,23 @@ from emulate.utils import (
     minnesota_potential_coordinate,
     minnesota_potential_momentum_1S0,
 )
-
 # n_intervals = 5
 # mesh = CompoundMesh(
 #     np.linspace(0, 20, n_intervals), 20 * np.ones(n_intervals, dtype=int)
 # )
 # r, dr = mesh.x, mesh.w
 # k, dk = mesh.x, mesh.w
-
 # And parameters for the potentials & solvers
 kappa_r = 1.487
 kappa_s = 0.465
 kappa_t = 0.639
-
 v_0r = 200.0
 v_0s = -91.85
 v_0t = -178.0
-
 # t_cm = np.array([50])
 # t_cm = np.arange(1, 100, 0.5)
 # q_cm = t_cm_to_q_cm(t_cm, MN, MN)
 hbar2_over_2mu = hbar_c**2 / MN
-
 # Given potentials from the above parameters that are linear combinations of two matrices
 V_k = hbar2_over_2mu ** (-1) * np.stack(
     [
@@ -847,7 +1205,6 @@ V_r = hbar2_over_2mu ** (-1) * np.stack(
     ],
     axis=-1,
 )
-
 # And the potentials are fed into the emulator classes (with no constant term)
 newton_1S0 = NewtonEmulator(
     V0=np.zeros_like(V_k[..., 0]),
@@ -858,7 +1215,6 @@ newton_1S0 = NewtonEmulator(
     boundary_condition=BoundaryCondition.STANDING,
     nugget=1e-10,
 )
-
 ls_kohn_1S0 = KohnLippmannSchwingerEmulator(
     V0=np.zeros_like(V_r[..., 0]),
     V1=V_r,
@@ -869,7 +1225,6 @@ ls_kohn_1S0 = KohnLippmannSchwingerEmulator(
     ell=ell,
     # nugget=1e-10,
 )
-
 # rng = np.random.default_rng(12)
 # p_train = rng.uniform(-200, 200, (n_train, 2))
 p_train = np.array([
@@ -878,22 +1233,21 @@ p_train = np.array([
     [300.0, -191.85],
     [300.0, 8.15],
 ])
-
 # p_valid = rng.uniform(-, 5, params_dimension)
-
 # When the wave function is predicted at the best fit Minnesota potential values
 p_valid = np.array([v_0r, v_0s])
-
 newton_1S0.fit(p_train)
 ls_kohn_1S0.fit(p_train)
 ```
 
+With the emulators trained, we can compare their performance in emulating radial wave functions:
 
 ```{python}
+#| label: fig-minnesota_wave_functions
+#| fig-cap: "Similar to @fig-yamaguchi_wave_functions but for the Minnesota potential."
 psi_train_minn_1S0 = ls_kohn_1S0.psi_train
 psi_exact_minn_1S0 = ls_kohn_1S0.predict_wave_function(p_valid)
 psi_valid_minn_1S0 = ls_kohn_1S0.emulate_wave_function(p_valid)
-
 r_mask = r <= 10
 q_mask = np.isin(q_cm, [0.8, 1,  2])
 fig, axes = plot_wave_functions(
@@ -907,17 +1261,17 @@ fig, axes = plot_wave_functions(
 plt.show()
 ```
 
-
+Next, we emulate the phase shifts associated with Minnesota potential:
 ```{python}
+#| label: fig-minnesota_phase_shift
+#| fig-cap: "Phase shifts for the Minnesota potential. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The training set is depicted by the gray lines."
 K_1S0_kvp = ls_kohn_1S0.predict(p_valid, full_space=False)
 K_1S0_nvp = newton_1S0.predict(p_valid)
 K_1S0_exact = newton_1S0.predict(p_valid, full_space=True)
-
 delta_1S0_kvp = newton_1S0.phase_shifts(K_1S0_kvp)
 delta_1S0_train = newton_1S0.phase_shifts(newton_1S0.K_on_shell_train.T).T
 delta_1S0_nvp = newton_1S0.phase_shifts(K_1S0_nvp)
 delta_1S0_exact = newton_1S0.phase_shifts(K_1S0_exact)
-
 fig, ax = plt.subplots(figsize=(3.3, 3))
 # ax.plot(t_cm, newton_1S0.K_on_shell_train[0, :], **BASIS_KWARGS, label="Basis")
 # ax.plot(t_cm, newton_1S0.K_on_shell_train, **BASIS_KWARGS)
@@ -926,9 +1280,8 @@ fig, ax = plt.subplots(figsize=(3.3, 3))
 ax.plot(q_cm, delta_1S0_train[:, 0], **BASIS_KWARGS, label="Basis")
 ax.plot(q_cm, delta_1S0_train, **BASIS_KWARGS)
 ax.plot(q_cm, delta_1S0_exact, **FULL_KWARGS, label="Exact")
-ax.plot(q_cm, delta_1S0_nvp, **PRED_KWARGS, label="Emulator")
-ax.plot(q_cm, delta_1S0_kvp, **PRED_KWARGS, label="Emulator")
-
+ax.plot(q_cm, delta_1S0_nvp, **PRED_KWARGS, label="NVP")
+ax.plot(q_cm, delta_1S0_kvp, **PRED_KWARGS, label="KVP")
 ax.legend()
 ax.set_title("1S0 Phase Shifts from the Minnesota Potential")
 ax.set_xlabel("$t_{\mathrm{cm}}$ [MeV]")
@@ -940,145 +1293,3 @@ ax.set_ylabel("$\delta$")
 # ax.set_ylim(-5, 5)
 plt.show()
 ```
-
-
-
-
-```{python}
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
-from emulate.utils import (
-    yamaguchi_form_factor_momentum_space,
-    yamaguchi_form_factor_position_space,
-)
-from emulate import CompoundMesh, QuadratureType
-from emulate.graphs import PRED_KWARGS, BASIS_KWARGS, FULL_KWARGS
-from emulate import setup_rc_params
-from emulate import NewtonEmulator
-from emulate import SeparableKohnEmulator
-from emulate import KohnLippmannSchwingerEmulator
-from emulate import BoundaryCondition
-
-setup_rc_params()
-sns.set_palette('pastel')
-
-from scipy.integrate import odeint
-
-
-def compute_U_vector(r, kappas):
-    return np.stack([np.exp(-kappa * r**2) for kappa in kappas], axis=-1)
-
-def compute_U(r, params, kappas):
-    return np.sum([p * np.exp(-kappa * r**2) for kappa, p in zip(kappas, params)], axis=0)
-
-def solve_schrodinger(y, r, params, kappas, k):
-    psi, d_psi = y
-    U = compute_U(r, params, kappas)
-    d2_psi = U * psi - k**2 * psi
-    return [d_psi, d2_psi]
-
-
-n_intervals = 10
-nodes = np.linspace(0, 10, n_intervals)
-n_points = 50 * np.ones(n_intervals, dtype=int)
-mesh = CompoundMesh(nodes, n_points)
-
-# Use the same mesh for k and r
-k, dk = mesh.x, mesh.w
-r, dr = mesh.x, mesh.w
-
-r_grid = np.linspace(0, 10, 1001)
-q_cm = 1
-
-KAPPAS = [0.5, 1]
-rng = np.random.default_rng(1)
-p_train = rng.uniform(-5, 5, (6, len(KAPPAS)))
-
-psi_train = []
-d_psi_train = []
-d2_psi_train = []
-initial_values = np.array([0, 1])
-for p_i in p_train:
-    psi_i, d_psi_i = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_i, KAPPAS, q_cm), printmessg=True, atol=1e-13, rtol=1e-11).T
-    psi_train.append(psi_i)
-    d_psi_train.append(d_psi_i)
-
-    d2_psi_i = solve_schrodinger([psi_i, d_psi_i], r, p_i, KAPPAS, q_cm)[-1]
-    d2_psi_train.append(d2_psi_i)
-psi_train = np.array(psi_train)
-d_psi_train = np.array(d_psi_train)
-d2_psi_train = np.array(d2_psi_train)
-
-fig, ax = plt.subplots(figsize=(3.4, 3))
-ax.plot(r, psi_train.T, c='k')
-ax.plot(r, d_psi_train.T, ls="--", c='b')
-ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
-
-ax.axhline(0, 1, 0, c='k', lw=0.8, zorder=-1)
-ax.set_xlim(0, 10)
-ax.set_ylim(-5, 5)
-
-
-U1 = compute_U_vector(r, KAPPAS)
-nabla_proj = np.einsum("ir,jr->ij", dr * psi_train, d2_psi_train)
-U_proj = np.einsum("ir,rp,jr->ijp", dr * psi_train, U1, psi_train)
-norm_proj = np.einsum("ir,jr->ij", dr * psi_train, psi_train)
-
-plt.show()
-```
-
-
-
-```{python}
-#| label: fig-wave-functions-origin
-#| fig-cap: "Wave functions constructed via the origin emulator."
-bc_idx = 0
-# Use a Petrov-Galerkin approach for the test functions on the boundary. Use d_psi.
-BC_norm_proj = d_psi_train[:, bc_idx] * d_psi_train[:, bc_idx].T
-b = d_psi_train[:, bc_idx]
-print(BC_norm_proj, BC_norm_proj.shape)
-
-p_valid = np.random.default_rng(29).uniform(-5, 5, len(KAPPAS))
-
-R0 = - nabla_proj - q_cm**2 * norm_proj + BC_norm_proj
-# R0 += 1e-15 * np.eye(R0.shape[0])
-R1 = U_proj
-
-psi_exact, _ = odeint(solve_schrodinger, y0=initial_values, t=r, args=(p_valid, KAPPAS, q_cm)).T
-
-coeff = np.linalg.solve(R0 + R1 @ p_valid, b)
-psi_valid = coeff @ psi_train
-
-fig, axes = plt.subplots(2, 1, figsize=(3.3, 3), sharex=True)
-
-r_mask = r <= 10
-
-ax = axes.ravel()[0]
-ax.plot(r[r_mask], psi_train[0, r_mask].T, **BASIS_KWARGS, label="Train")
-ax.plot(r[r_mask], psi_train[:, r_mask].T, **BASIS_KWARGS)
-# ax.plot(r, d_psi_train.T, ls="--", c='b')
-# ax.plot(r, d2_psi_train.T, ls="-.", c='lightgrey')
-ax.plot(r[r_mask], psi_exact[r_mask], **FULL_KWARGS, label="Exact")
-ax.plot(r[r_mask], psi_valid[r_mask], **PRED_KWARGS, label="Emulator")
-ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
-ax.set_xlim(0, 10)
-# ax.set_xlabel("$r$")
-ax.set_ylabel("$r\psi(r)$")
-# ax.legend()
-ax.legend(loc="lower left", bbox_to_anchor=(0, 1.03, 1, 1), mode="expand", borderaxespad=0, ncol=3)
-# ax.set_title("Galerkin approach for $u(r)$ with Minnesota potential")
-
-
-ax = axes.ravel()[1]
-
-ax.semilogy(r[r_mask], np.abs(psi_exact[r_mask]-psi_valid[r_mask]), label="Abs.\ Residual")
-ax.set_xlabel("$r$")
-ax.legend()
-plt.show()
-```
-
-:::
