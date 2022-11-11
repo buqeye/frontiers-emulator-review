@@ -11,7 +11,7 @@ and applications central to the overall theme of this Frontiers Research Topic @
 
 In particular, we have discussed variational and Galerkin methods combined with snapshot-based trial (or test) functions as the foundation for constructing fast & accurate emulators.
 These emulators enable repeated bound state and scattering calculations, _e.g._, for  sampling a model's parameter space when high-fidelity calculations are computationally expensive or prohibitively slow.
-A crucial element in the emulator workflow, as summarized in Figure @fig:illustration_fom_rom, is an efficient offline-online decomposition in which the heavy computational lifting is performed only once before the emulator is invoked.
+A crucial element in the emulator workflow, as summarized in Figure @fig-illustration_fom_rom, is an efficient offline-online decomposition in which the heavy computational lifting is performed only once before the emulator is invoked.
 Chiral Hamiltonians allow for such efficient decompositions due to their affine parameter dependence on the low-energy couplings.
 
 While MOR has already reached maturity in other fields, it is still in its infancy in nuclear physics---although rapidly growing---and there remains much to explore and exploit [@Melendez:2022; @Bonilla:2022rph; @Anderson:2022jhq; @Giuliani:2022yna].
@@ -30,7 +30,7 @@ All of these avenues can benefit from the rich MOR literature and software tools
     in nonlinear problems
     may be fruitful in nuclear physics.
 
-* Many technical aspects should be further explored, such as greedy (or active-learning)~@Sarkar:2021fpz and SVD-based algorithms for choosing the training points more effectively, hyperreduction methods for non-affine problems, and improved convergence analyses.
+* Many technical aspects should be further explored, such as greedy (or active-learning) @Sarkar:2021fpz and SVD-based algorithms for choosing the training points more effectively, hyperreduction methods for non-affine problems, and improved convergence analyses.
 
 * The emulator framework can be used to extrapolate observables far away from the support of the training data, such as the discrete energy levels of a many-body system calculated in one phase to those of another, as demonstrated in Reference @Frame:2017fah.
     Using emulators as a resummation tool to increase the convergence radius of series expansions @Demol:2019yjt falls into this category as well, and so does using them to extrapolate finite-box simulations of quantum systems across wide ranges of box sizes @Yapa:2022nnv.

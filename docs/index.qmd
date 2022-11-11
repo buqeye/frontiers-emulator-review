@@ -13,7 +13,7 @@ If you find our "BUQEYE Guide for Projection-based Emulators in nuclear physics"
 # Funding {.unnumbered}
 This material is based upon work supported by the U.S. Department of Energy, Office of Science, Office of Nuclear Physics, under the FRIB Theory Alliance award DE-SC0013617.
 This work was supported in part by the National Science Foundation under award numbers PHY-1913069 and PHY-2209442 and the NSF CSSI program under award
-number OAC-2004601 (BAND Collaboration @BAND_Framework), and the NUCLEI SciDAC Collaboration under U.S. Department of Energy MSU subcontract RC107839-OSU\@.
+number OAC-2004601 (BAND Collaboration @BAND_Framework), and the NUCLEI SciDAC Collaboration under U.S. Department of Energy MSU subcontract RC107839-OSU.
 
 
 # Acknowledgments {.unnumbered}

@@ -4,18 +4,9 @@ format:
   html:
     code-fold: show
     code-tools: true
-    include-in-header:
-      - text: |
-          \usepackage{slashed}
-          \usepackage{mathds}
 jupyter: python3
 ---
 
-::: {.hidden}
-$$
-{{< include mymacros.tex >}}
-$$
-:::
 {{< include _code_preamble.qmd >}}
 
 ::: {.hidden}

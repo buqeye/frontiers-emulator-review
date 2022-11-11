@@ -7,12 +7,6 @@ format:
 jupyter: python3
 ---
 
-::: {.hidden}
-$$
-{{< include mymacros.tex >}}
-\usepackage{mathds}
-$$
-:::
 {{< include _code_preamble.qmd >}}
 
 ::: {.hidden}
@@ -32,7 +26,7 @@ $$ {#eq-generic_eigenvalue_problem}
 subject to the normalization $\braket{\psi(\params)|\psi(\params)} = 1$, in the parameter space $\params$.
 The components of the vector $\params$ may be model parameters, such as the low-energy couplings of a nuclear EFT, or other parameters describing the system of interest [@Zhang:2021jmi;@Yapa:2022nnv].
 We consider here cases in which Equation @eq-generic_eigenvalue_problem can be solved with high fidelity, but doing so requires a significant amount of computing time, _e.g._, repeated calculations in the parameter space $\params$ for Monte Carlo sampling or optimization tasks are computationally demanding to prohibitively slow.
-In the following, we will discuss how the Ritz variational principle and the Galerkin method can be used to construct rapid and reliable^[A \emph{reliable} emulator may not necessarily be required to be highly accurate, _e.g._, if the other uncertainties of the theoretical calculation dominate the overall uncertainty budget.] emulators that facilitate these calculations. % and how they relate to more general projection approaches such as the Galerkin method.
+In the following, we will discuss how the Ritz variational principle and the Galerkin method can be used to construct rapid and reliable^[A \emph{reliable} emulator may not necessarily be required to be highly accurate, _e.g._, if the other uncertainties of the theoretical calculation dominate the overall uncertainty budget.] emulators that facilitate these calculations.
 
 
 ## Variational approach {#sec-eigen-emulators_variational}
@@ -45,7 +39,6 @@ $$
     \mathcal{E}[\trial\psi] = \braket{\trial\psi | H(\params) | \trial\psi} - \subspace{E}(\params) (\braket{\trial\psi | \trial\psi} - 1),
 \end{equation}
 $$ {#eq-ritz_functional}
-%combined with the _effective_ trial wave functions $\ket{\trial\psi}$ we will discuss below.
 where the Lagrange multiplier $\subspace{E}(\params)$ (also known as Ritz value)
 imposes the normalization condition $\braket{\trial\psi | \trial\psi} = 1$ for bound states. The General Ritz Theorem [@Suzuki:1998bn]^[Many helpful theorems relevant to the Rayleigh--Ritz method can be found in Section~3 in Reference @Suzuki:1998bn.] states that the functional @eq-ritz_functional is stationary about all (discrete) solutions of the Schrödinger Equation @eq-generic_eigenvalue_problem, not just the ground state solution, which can be seen by
 imposing the stationary condition
@@ -180,7 +173,6 @@ But replacing $\ket{\psi} \to \ket{\trial\psi}$ also implies that the true eigen
 Hence, we also had to apply the approximation $\subspace{E}\approx E$ in Equations @eq-eigenvalue_galerkin_geom and @eq-eigenvalue_galerkin.
 
 In the Galerkin method, which is also known as the "method of weighted residuals," the test and trial function bases are chosen to be equivalent;
-% _i.e._, $\ket{\testfunc_i} = \ket{\bar\testfunc_i} = \ket{\psi_i}$.
 _i.e._, $\mathcal{Z} = \mathcal{X}$.
 The so-called Galerkin condition @eq-eigenvalue_galerkin is then equivalent to imposing that $\braket{\psi_i | H - \subspace{E} |\trial\psi} = 0$ holds for $i \in [1, \nbasis]$.
 This yields a system of $\nbasis$ equations with $\nbasis$ unknowns $\coeffs$ and, together with the normalization condition, reduces to Equation @eq-ritz_condition} obtained from the variational principle in Section @sec-eigen-emulators_variational.
@@ -209,7 +201,6 @@ For illustration, Figure @fig-illustration_fom_rom assumes that the high-fidelit
 The corresponding runtime $t_s$ per sampling point $\params_i$ is indicated by the width of the blue bar in Figure @fig-illustration_fom_rom.
 In nuclear physics, such approaches are referred to as Configuration Interaction (CI).
 However, the following discussion will be independent of how the high-fidelity solutions of the Schrödinger Equation @eq-generic_eigenvalue_problem} are obtained in practice.
-%Although the idiosyncrasies of the solver used for this task are irrelevant for our discussion, for illustration, we express here the eigenvalue problem @eq-generic_eigenvalue_problem in a truncated model basis in which only $N_h$ of the lowest-lying states are considered and perform a direct diagonalization of the $\nsimulator \times \nsimulator$ Hamiltonian matrix, as shown in Figure @fig-illustration_fom_rom.
 
 Using the high-fidelity solver, one constructs a set of snapshots $\{\ket{\psi(\params_i)}\}_{i=1}^{\nbasis}$ in the truncated model basis to build the columns of the $\nsimulator \times \nbasis$ matrix $X$.
 The runtime for this task is $\nbasis \times t_s$.
@@ -250,7 +241,6 @@ See also References [@Amsallem2010;@AnCubature2008;@Farhat2014;@Benner20201] for
 How should one choose the snapshots in the trial wave function @eq-trial_general effectively?
 For relatively small parameter spaces, one can use Latin hypercube sampling to obtain space-filling snapshots or choose the snapshots in the proximity of the to-be-emulated parameter ranges, keeping $\nbasis \ll \nsimulator$ in practice.
 A chosen set of snapshots expressed in the (truncated) model basis can be optimized by applying a singular value decomposition (SVD) or the closely related proper orthogonal decomposition (POD) @Gubisch2017 to the $\nsimulator \times \nbasis$ matrix $X$.
-%(which is closely related to the singular value decomposition)
 One then creates a new set of snapshots from the (orthonormal) left-singular vectors associated with the singular values greater than a chosen threshold @hesthaven2015certified.
 This (optional) preprocessing step can be performed during the offline stage, as illustrated in Figure @fig-illustration_fom_rom, thereby rendering the emulator equation @eq-ritz_condition an eigenvalue problem (_i.e._, $\mathcal{N} = \identity$) and less sensitive to numerical noise.
 

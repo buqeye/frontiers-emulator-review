@@ -18,7 +18,7 @@ $$
 
 
 # Model Reduction {#sec-model-reduction}
-
+$\identity$
 In this Section, we provide a more general discussion of variational principles and the Galerkin method as the foundations for constructing highly efficient emulators for nuclear physics.
 The general methods discussed here will be used as a springboard to develop emulators for the specific case of scattering systems in Section @sec-scattering-emulators.
 
@@ -56,14 +56,14 @@ However, VPs can also lead straightforwardly to a reduced-order model.
 This follows from the following trial ansatz
 $$
 \begin{align}
-    \ket{\trial\trialfunc} & \equiv \sum_{i=1}^{\nbasis} \coeff_i\ket{\trialfunc_i} = X\coeffs, %\label{eq-trial_general_xi}\\
+    \ket{\trial\trialfunc} & \equiv \sum_{i=1}^{\nbasis} \coeff_i\ket{\trialfunc_i} = X\coeffs, %\label{eq-trial_general_xi}
+    \\
     X & \equiv
     \begin{bmatrix}
         \ket{\trialfunc_1} & \ket{\trialfunc_2} & \cdots & \ket{\trialfunc_{\nbasis}}
     \end{bmatrix},
 \end{align}
 $$ {#eq-trial_general_subeq}
-%
 with the to-be-determined coefficients vector $\coeffs$.
 Rather than stipulate that $\delta\action = 0$ for any arbitrary variation $\delta\trialfunc$, we instead extract the optimal coefficients, $\coeffsopt$, as those for which $\action$ is stationary under variations in $\coeffs$:^[For simplicity we consider $\trialfunc$ to be real a variable; for complex variables, independent variations $\delta\coeffs^\ast$ should be included in the discussion.]
 $$
@@ -119,7 +119,7 @@ $$
 \end{align}
 $$
 where $\delta\coeff_i$ are arbitrary parameters, not related to the $\coeff_i$ in Equation @eq-trial_general_subeq.
-The $\delta\coeff_i$ will play the same role as those in Equation @eq-action_stationary_ansatz}, namely as a bookkeeping method for determining the set of equations that are equivalently zero.
+The $\delta\coeff_i$ will play the same role as those in Equation @eq-action_stationary_ansatz, namely as a bookkeeping method for determining the set of equations that are equivalently zero.
 By enforcing that the residuals against these test functions vanish for arbitrary $\delta\coeff_i$, the bracketed expression in
 $$
 \begin{align}

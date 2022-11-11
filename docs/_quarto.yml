@@ -87,11 +87,11 @@ format:
     fig-dpi: 900
     fig-format: png
     crossref:
-      eq-prefix: "Eq."
-      fig-prefix: "Figure"
-      sec-prefix: "Section"
+      eq-prefix: "" #"Eq."
+      fig-prefix: "" #"Figure"
+      sec-prefix: "" #"Section"
     language:
-      crossref-ch-prefix: "Section"
+      crossref-ch-prefix: "" #"Section"
   pdf:
     # documentclass: scrreprt
     documentclass: template-2022/frontiersinFPHYFAMS
@@ -125,10 +125,10 @@ format:
           \def\endlongtable{\endxtabular}
           \makeatother
     crossref:
-      eq-prefix: "Eq."
-      fig-prefix: "Figure"
-      sec-prefix: "Section"
+      eq-prefix: "" #"Eq."
+      fig-prefix: "" #"Figure"
+      sec-prefix: "" #"Section"
     language:
-      crossref-ch-prefix: "Section"
+      crossref-ch-prefix: "" #"Section"
     template-partials:
       - partials/title.tex
