@@ -54,7 +54,6 @@ Many differential equations @eq-generic_differential_and_boundary can be obtaine
 
 However, VPs can also lead straightforwardly to a reduced-order model.
 This follows from the following trial ansatz
-%
 $$
 \begin{align}
     \ket{\trial\trialfunc} & \equiv \sum_{i=1}^{\nbasis} \coeff_i\ket{\trialfunc_i} = X\coeffs, %\label{eq-trial_general_xi}\\
