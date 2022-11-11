@@ -2,50 +2,32 @@
 {{< include macros.qmd >}}
 :::
 
-
 # Introduction
 
-## Motivation
+Nuclear systems are notoriously complex. But typically, our theoretical modeling of nuclear phenomena contains superfluous information for quantities of interest.
+Model order reduction (MOR) refers to powerful techniques that enable us to reduce a system's complexity systematically (_e.g._, see References [@Benner_2017aa; @Benner2017modelRedApprox; @benner2015survey] for comprehensive introductions).
+These techniques enable emulators,
+which are low-dimensional surrogate models capable of rapidly and reliably approximating high-fidelity models,
+making practical otherwise impractical calculations.
+But the nuclear physics community has barely scratched the surface of the types of emulators that could be crafted or explored their full range of applications.
 
-Emulators---fast numerical models that approximate the expensive *simulator*---can open the door to a wide range of techniques and applications in nuclear physics. Otherwise impractical calculations could be emulated with fewer computational resources.
-These are timely developments, as nuclear simulations are being pushed toward larger masses, within unstable regimes, and using sophisticated Bayesian methods.
-But the nuclear physics community has not scratched the surface of the types of emulators that could be crafted or explored their full range of applications.
-Key to the broader adoption of these tools is both the evangelization of their potential and pedagogical guides for those first starting in this field.
-This review is aimed at achieving both of these goals.
+A fertile area for new emulators is uncertainty quantification (UQ) [@Zhang:2015ajn; @Neufcourt:2019qvd; @King:2019sax; @Ekstrom:2019lss; @Catacora-Rios:2020xgx; @Wesolowski:2021cni; @Svensson:2021lzs; @Odell:2021tqd; @Djarv:2021pjc; @Alnamlah:2022eae] in nuclear physics, which is the general theme of this Frontiers Research Topic @ResearchTopicUQ.
+Bayesian parameter estimation for nuclear effective field theory (EFT) and optical models, UQ for nuclear structure pushing toward larger masses and for reactions across the chart of nuclides, experimental design [@Melendez:2020ikd; @Phillips:2020dmw; @Farr:2021fyc] for the next generation of precision experiments probing the nuclear dripline,
+and many other applications
+will all benefit from emulators.
+Key to the wider adoption of these tools is the evangelization of their potential and the creation of pedagogical guides for those first starting in this field @Melendez:2022.
+This article is aimed at  both goals.
 
-::: {.content-visible when-format="pdf"}
-To do so, we have created a rather unconventional document comprised of both a static, published PDF, which you are reading now, along with a corresponding website containing supplemental material and all code that generates the results.
+To do so, the BUQEYE collaboration (Bayesian Uncertainty Quantification: Errors in Your EFT) @BUQEYEweb has created a rather unconventional document comprised of the article you are reading now along with a companion website @companionwebsite containing interactive supplemental material and source code that generates all the results shown, and much more.
 Interested individuals can dynamically generate different versions of the document based on tunable parameters.
-We hope that this format both encourages readers to experiment and build upon the examples presented here, and enables new applications.
-:::
+We hope that this format encourages readers to experiment and build upon the examples presented here, thereby facilitating new applications.
 
-::: {.content-visible unless-format="pdf"}
-To do so, we have created a rather unconventional document comprised of both a static, [published PDF](...), along with a corresponding website containing supplemental material and all code that generates the results.
-Interested individuals can dynamically generate different versions of the document based on tunable parameters.
-We hope that this format both encourages readers to experiment and build upon the examples presented here, and enables new applications.
-Instructions for generating this site under different parameter choices can be found [here](...).
-:::
+Various types of emulators have already been applied with success within nuclear physics.
+A non-exhaustive list of applications includes References [@Higdon:2014tva; @Frame:2017fah; @Sarkar:2020mad; @Sarkar:2021fpz; @Konig:2019adq; @Demol:2019yjt; @Ekstrom:2019lss; @Bai:2021xok; @Demol:2020mzd; @Yoshida:2021jbl; @Wesolowski:2021cni; @Furnstahl:2020abp; @Melendez:2021lyq; @Drischler:2021qoy; @Zhang:2021jmi; @Drischler:2022yfb; @Anderson:2022jhq; @Giuliani:2022yna; @Surer:2022lhs; @Bai:2022hjg; @Kravvaris:2020lhp; @Yapa:2022nnv; @Francis:2022zib; @Zare:2022cdw].
+But as emphasized in References [@Melendez:2022kid; @Bonilla:2022rph], there is a broad and relatively mature MOR literature outside of nuclear physics waiting to be exploited (_e.g._, see Reference @Benner2020Volume1DataDriven for an overview of the universe of MOR approaches).
+Our goal in this guide will be to facilitate this exploitation through a selective treatment of physics-informed, projection-based emulators relevant to a wide range of nuclear physics problems.
 
-Emulators come in a variety of flavors which can be categorized according to multiple schemes.
-One useful taxonomy places emulators on a spectrum of data-driven to model-driven.
-Data-driven emulators can treat the exact simulator results as a black box and build an emulator from its predictions.
-Model driven emulators instead take the governing (differential) equations as given, from which the emulator is derived as a low order approximation.
-
-Some variants of data driven emulators have been applied with success within nuclear physics.
-
-On the other hand, although the theory of model driven emulators is quite mature, the adoption of such tools is still in its infancy in nuclear physics.
-
-The remainder of this document is structured as follows.
-@sec-model-reduction introduces the key concepts of model reduction used for deriving reduced-order models.
-@sec-eigen-emulators derives reduced-order emulators for eigen-systems and contrasts these with alternative emulators in an example setting.
-@sec-scattering-emulators continues with two scattering examples based on the Kohn and Newton variational principles.
-
-
-
-
-<!-- | Variable     | Usage Here |
-|--------------|--------------------------------------------|
-| $\coeffs$    | coefficients in the trial wave function    |
-| ...    | ...    |
-
-: Nomenclature {#tbl-nomenclature} -->
+To this end, we organize this guide as follows. Section @sec-eigen-emulators focuses on emulators for bound-state calculations using subspace-projection methods.
+We then provide a more general introduction to MOR for solving differential equations in Section @sec-model-reduction, which leads to our discussion of scattering emulators in Section @sec-scattering-emulators.
+Section @sec-conclusion concludes with a summary and outlook.
+Throughout, we draw connections between variational and Galerkin projection methods and illustrate these concepts with pedagogical examples, supplemented by source code on the companion website @companionwebsite.

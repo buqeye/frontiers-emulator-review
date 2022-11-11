@@ -2,11 +2,7 @@
 ::: {.content-hidden when-format="pdf"}
 # Preface {.unnumbered}
 
-This is a Quarto book. Testing.
-
-To learn more about Quarto books visit <https://quarto.org/docs/books>.
-
-If you find these resources helpful, please cite our work:
+If you find our "BUQEYE Guide for Projection-based Emulators in nuclear physics" helpful, please cite our work:
 ```bibtex
 @article{
     ...
