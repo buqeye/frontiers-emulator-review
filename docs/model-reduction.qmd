@@ -10,182 +10,131 @@ appendix-style: default
 license: "CC BY"
 ---
 
+::: {.hidden}
+$$
+{{< include mymacros.tex >}}
+$$
+:::
+
 
 # Model Reduction {#sec-model-reduction}
 
+In this Section, we provide a more general discussion of variational principles and the Galerkin method as the foundations for constructing highly efficient emulators for nuclear physics.
+The general methods discussed here will be used as a springboard to develop emulators for the specific case of scattering systems in Section @sec-scattering-emulators.
 
-::: {.hidden}
-{{< include macros.qmd >}}
-:::
-
-
-## What is model reduction?
-
-![Illustration of offline-online compositions for fast & accurate emulators. Inspired by Figure~1 in Ref.[]](offline_online.png){fig.pos='tb'}
-
-![Illustration of an RBM. Inspired by Figure~1 in Ref.[]](rbm.png){fig.pos='tb'}
-
-The holy grail of complex physical simulations is an *emulator* that captures most important features of the high-fidelity simulator, but is much cheaper to evaluate.
-The field of model reduction provides a set of tools for constructing such emulators, or reduced-order models, in a variety of contexts.
-
-We would like to solve a differential equation or an eigenvalue problem where the operators are a function of parameters $\param$.^[
-Note that the literature may use a different notation, including $\mu$ for the set of parameters.]
-In the case of a differential equation, the goal is to obtain the solution $\psi$ of
+We consider (time-independent) differential equations that depend on the parameter vector $\params$ and
+aim to find the solution $\trialfunc$ of
 $$
-\begin{aligned}
-    D(\psi; \param) & = 0 \quad \text{in } \Omega, \\
-    B(\psi; \param) & = 0 \quad \text{on } \Gamma,
-\end{aligned}
+\begin{align}
+    D(\trialfunc; \params) & = 0 \quad \text{in } \Omega,  \\
+    B(\trialfunc; \params) & = 0 \quad \text{on } \Gamma,
+\end{align}
 $$ {#eq-generic_differential_and_boundary}
-where $\{D, B\}$ are operators, and $\{\Omega, \Gamma\}$ are the domain and boundary, respectively.
-Generalizations to systems of differential equations follows straightforwardly.
-For the eigenvalue problem the solutions are $\{E, \ket{\psi} \}$, which satisfy
+where $\{D, B\}$ are differential operators and $\Omega$ is the domain with boundary $\Gamma$.
+Here, we use the generic function $\trialfunc$ because different choices of $\trialfunc$ will be made in Section @sec-scattering-emulators.
+In what follows, we will discuss two related methods for constructing emulators from Equation @eq-generic_differential_and_boundary,
+which states the physics problem in a _strong form_ (_i.e._, for each point in the domain and on the boundary).
+The first begins by finding a variational principle whose stationary solution implies Equation @eq-generic_differential_and_boundary.
+The second instead constructs the corresponding _weak form_ of Equation @eq-generic_differential_and_boundary.
+
+
+## Variational principles {#sec-variational}
+
+Variational principles (VPs) have a long history in physics and play a central role in a wide range of applications; _e.g._, for deriving equations of motion using stationary-action principles and Euler--Lagrange equations in classical mechanics (see, _e.g._, Ref. [@Variational_Ritz_history_review_2012] for a historical overview).
+Here, we use VPs as an alternate way of solving  the differential equations @eq-generic_differential_and_boundary.
+
+Variational principles are based on scalar functionals of the form
 $$
-    H(\param)\ket{\psi} = E\ket{\psi}
-$$ {#eq-generic_eigenvalue_problem}
-for a given Hermitian operator $H$.
-Throughout this work we switch between an abstract vector notation $\ket{\psi}$ and functions $\psi$ with the representation dependencies suppressed.
-Time-dependence is permitted in these systems but is not explicitly considered here---see Sec.~\ref{sec:model_reduction} for pointers on how to handle these cases.
+\begin{equation}
+    \action[\trialfunc] = \int_\Omega \dd{\Omega} F[\trialfunc] + \int_\Gamma \dd{\Gamma} G[\trialfunc],
+\end{equation}
+$$ {#eq-generic_functional}
+where $F$ and $G$ are differential operators.
+Many differential equations @eq-generic_differential_and_boundary can be obtained as stationary solutions of a corresponding functional @eq-generic_functional; _i.e._, the solution $\trialfunc_\star$ that leads to $\delta\action[\trialfunc_\star] = 0$.
 
-
-## Gaussian Processes
-
-The complexity of a simulator can be alleviated by training an emulator on evaluations of the simulator at a few well chosen points.
-Subsequent evaluations are cheap because the emulator can be used in place of the simulator.
-Gaussian processes are one such flexible emulator.
-
-A Gaussian process (GP) is a non-parametric model used for both regression and classification tasks.
-Like its multivariate counterpart, GPs are fully specified by their mean and covariance.
-But draws from a GP are functions $f(x)$, which makes the mean $m(x)$ and covariance $\Sigma(x, x')$ also functions of $x$.
-However, one can relate these back to less abstract multivariate distribution via the defining property of a GP:
-
-> A Gaussian process is a collection of random variables, any finite number of which have a joint Gaussian distribution.
-
-GPs share the features that make Gaussian distributions attractive in other contexts:
-
-* simple, closed-form expressions result from Gaussian distributions
-* Gaussians closely approximate many naturally occuring phenomena
-* ...
-
-This has led to its incorporation into many machine learning libraries, such as `scikit-learn` and `Tensorflow`, and has found widespread use across disciplines ranging from geography to biology.
-Indeed, it is now simpler than ever to emulate high-fidelity models with a GP.
-
-::: {.content-hidden when-format="pdf"}
-```{python}
-from sklearn.gaussian_process import GaussianProcessRegressor
-```
-:::
-
-
-## Variational principles & the Ritz method {#sec-variational}
-
-Variational principles are ubiquitous in physics.
-Many differential equations have a corresponding action, where the solution to the differential equation also makes the action stationary.
-This yields an alternate way of solving a set of PDEs: rather than solving the Euler-Lagrange equations themselves, one can instead find the solution that makes the action stationary under perturbations.
-The use of variational principles as a means to solve otherwise difficult problems dates back to Ritz.
-
-Variational principles begin with the definition of a scalar functional $\action$ that can be written as
+However, VPs can also lead straightforwardly to a reduced-order model.
+This follows from the following trial ansatz
+%
 $$
-    \action[\psi] = \int_\Omega \dd{\Omega} F[\psi, \psi', \cdots] + \int_\Gamma \dd{\Gamma} E[\psi, \psi', \cdots]
+\begin{align}
+    \ket{\trial\trialfunc} & \equiv \sum_{i=1}^{\nbasis} \coeff_i\ket{\trialfunc_i} = X\coeffs, %\label{eq-trial_general_xi}\\
+    X & \equiv
+    \begin{bmatrix}
+        \ket{\trialfunc_1} & \ket{\trialfunc_2} & \cdots & \ket{\trialfunc_{\nbasis}}
+    \end{bmatrix},
+\end{align}
+$$ {#eq-trial_general_subeq}
+%
+with the to-be-determined coefficients vector $\coeffs$.
+Rather than stipulate that $\delta\action = 0$ for any arbitrary variation $\delta\trialfunc$, we instead extract the optimal coefficients, $\coeffsopt$, as those for which $\action$ is stationary under variations in $\coeffs$:^[For simplicity we consider $\trialfunc$ to be real a variable; for complex variables, independent variations $\delta\coeffs^\ast$ should be included in the discussion.]
 $$
-where $F$ and $E$ are known differential operators, and $\Omega$ and $\Gamma$ are the domain and boundary, respectively.
-The unknown function $\psi$ is determined as that which makes $\action$ *stationary*, i.e., $\delta\action = 0$.
-
-The use of an *action* $\action$ to derive Euler-Lagrange equations is common practice in the physical sciences.
-But if one first proposes an *ansatz* as a trial function
-$$
-\begin{aligned}
-    \trial\psi = \sum_{i=1}^{\nbasis} \coeff_i\psi_i = X\coeffs
-\end{aligned}
-$$ {#eq-trial_general}
-then variational principles lead straightforwardly to an emulator $\trial\psi \approx \psi$.
-Rather than stipulate that $\delta\action = 0$ for any arbitrary variation $\delta\psi$, we instead extract the optimal coefficients, $\coeffs_\star$, as those for which $\action$ is stationary under variations in $\coeffs$:
-$$
-\begin{aligned}
-    \delta\action = \sum_{i=1}^{\nbasis} \frac{\partial\action}{\partial\coeff_i}\delta\coeff_i = 0
-\end{aligned}
+\begin{equation} %\label{eq-action_stationary_ansatz}
+    \delta\action = \sum_{i=1}^{\nbasis} \frac{\partial\action}{\partial\coeff_i}\delta\coeff_i = 0.
+\end{equation}
 $$ {#eq-action_stationary_ansatz}
-
-The general case would involve a numerical search for the solution to @eq-action_stationary_ansatz or \eqref{eq-action_stationary_ansatz} but if $\action$ is quadratic in $\psi$ then the solution can be determined exactly.
-In this case $\action$ can be written as
+The general case would involve a numerical search for the solution to Equation @eq-action_stationary_ansatz but if $\action$ is quadratic in $\trialfunc$ then the solution can be determined exactly.
+In this case, $\action$ can be written as
 $$
-\begin{aligned}
-    \action = \coeffs^\dagger A \coeffs + \vec{b}\cdot \coeffs + c
-\end{aligned}
+\begin{equation}
+    \action = \frac{1}{2}\coeffs^\trans A \coeffs + \vec{b}\cdot \coeffs + c
+\end{equation}
 $$
-for some $A$, $\vec{b}$, and $c$.
-The quadratic portion could be made symmetric---if it is not already---by writing it as
+for some matrix $A$, vector $\vec{b}$, and scalar $c$.
+Symmetrizing the quadratic portion---if it is not already symmetric---by rewriting $A \leftarrow (A + A^\trans)/2$ can be desirable for numerical purposes.
+It then follows that the optimal coefficients, $\coeffsopt$ are those for which
 $$
-\begin{aligned}
-    \action & = \coeffs^\dagger A_s \coeffs+ \vec{b}\cdot \coeffs + c \\
-    A_s & = \frac{A + A^\trans}{2}
-\end{aligned}
-$$
-which can be desirable for numerical purposes.
-It then follows that the optimal coefficients, $\coeffs_\star$ are those for which
-$$
-\begin{aligned}
-    \delta\action = A_s\coeffs_\star + \vec{b} = 0
-\end{aligned}
+\begin{equation} %\label{eq-coefficient_solve_quadratic}
+    \delta\action = A_s\coeffs_\star + \vec{b} = 0,
+\end{equation}
 $$ {#eq-coefficient_solve_quadratic}
-which requires a simple matrix solve operation to obtain $\coeffs_\star$.
-This solve occurs only in a space of size $\nbasis$, the number of basis elements $\{\psi_i\}$, rather than in the much larger space of $\psi$ itself.
-Therefore, so long as $\{\psi_i\}$ approximately span the space in which $\psi$ lives, the trial function constructed by @eq-trial_general and @eq-coefficient_solve_quadratic will be both a fast and an accurate emulator of $\psi$.
+which can be solved for $\coeffsopt$ using standard linear algebra methods.
+Solving for $\coeffsopt$ occurs only in a space of size $\nbasis$, the number of basis elements $\{\trialfunc_i\}_{i=1}^{\nbasis}$, rather than in the much larger space of $\trialfunc$ itself.
+Therefore, as long as $\{\trialfunc_i\}_{i=1}^{\nbasis}$ approximately spans the space in which $\trialfunc$ lives, the trial function constructed by Equations @eq-trial_general_subeq and @eq-coefficient_solve_quadratic will be both a fast & accurate emulator of $\trialfunc$.
 
 
 ## Galerkin Emulators
 
-
-The Galerkin approach, also more broadly called the "method of weighted residuals," relies on the *weak* formulation of the differential equations in @eq-generic_differential_and_boundary.
-To obtain the weak form, the differential equation and boundary condition are multiplied by arbitrary test functions $\phi$ and $\bar\phi$, integrated over the domain and boundary, and their sum set equal to zero:
+On the other hand, the Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations in Equation @eq-generic_differential_and_boundary.
+To obtain the weak form, the differential equation and boundary condition (in Equation @eq-generic_differential_and_boundary}) are left-multiplied by arbitrary test functions $\testfunc$ and $\bar\testfunc$ and integrated over the domain and boundary, respectively, and then their sum is set to zero:
 $$
-    \int_\Omega \dd{\Omega} \phi  D(\psi) + \int_\Gamma \dd{\Gamma} \bar\phi  B(\psi) = 0.
+\begin{equation} %\label{eq-weak_differential}
+    \int_\Omega \dd{\Omega} \testfunc  D(\trialfunc) + \int_\Gamma \dd{\Gamma} \bar\testfunc  B(\trialfunc) = 0.
+\end{equation}
 $$ {#eq-weak_differential}
-If @eq-weak_differential holds for all $\phi$ and $\bar\phi$, then @eq-generic_differential_and_boundary must be satisfied as well.
-The form of @eq-weak_differential is often rewritten using integration by parts to reduce the order of derivatives and to simplify the solution.
+If Equation @eq-weak_differential holds for all $\testfunc$ and $\bar\testfunc$, then Equation @eq-generic_differential_and_boundary must be satisfied as well.
+The form of Equation @eq-weak_differential is often rewritten using integration by parts to reduce the order of derivatives and simplify the solution.
 Importantly, the weak form has the integral form needed for our emulator application.
-The weak form and its Galerkin projection are used extensively, for example, in the finite element method; see [@zienkiewicz2013finite; @Zienkiewicz2014finitesolid;@Zienkiewicz2014finitefluid] for an in-depth study and list of examples.
-For discussion of the convergence properties of the Galerkin method, its relation to abstract variational problems, and other salient mathematical details, see [@hesthaven2015certified; @Mikhlin_1967; @Evans1996; @Brenner:2008].
-Here we follow the introduction of Galerkin methods as provided in @zienkiewicz2013finite.
+The weak form and its Galerkin projection are used extensively, _e.g._, in the finite element method; see References [@zienkiewicz2013finite;@Zienkiewicz2014finitesolid;@Zienkiewicz2014finitefluid] for an in-depth study and examples.
+For a discussion of the convergence properties of the Galerkin method, its relation to abstract variational problems, and other salient mathematical details, see References [@hesthaven2015certified; @Mikhlin_1967;@Evans1996;@Brenner:2008].
+Here, we follow the introduction of Galerkin methods as provided in Reference @zienkiewicz2013finite.
 
-Starting with the weak form, we can begin to construct an emulator that avoids the need for an explicit variational principle.
-It begins by first noting that substituting our trial function~\eqref{eq:trial_general} into $D(\psi)$ and $B(\psi)$ will not in general satisfy @eq-generic_differential_and_boundary regardless of the choice of $\coeffs$.
-Therefore, there will be some \emph{residual}, and the goal is to find $\coeffs_\star$ which minimize that residual across a range of test functions $\phi$ and $\bar\phi$.
-This system would be over-determined in the case of truly arbitrary test functions, so instead we propose the test bases
+Starting with the weak form, we can construct an emulator that avoids the need for an explicit variational principle.
+It begins by first noting that substituting our trial function Equation @eq-trial_general_subeq into $D(\trialfunc)$ and $B(\trialfunc)$ will not, in general, satisfy Equation @eq-generic_differential_and_boundary regardless of the choice of $\coeffs$.
+Therefore, there will be some _residual_, and the goal is to find the $\coeffsopt$ which minimizes that residual across a range of test functions $\testfunc$ and $\bar\testfunc$.
+This system would be over-determined in the case of truly arbitrary test functions, so instead, we propose the test bases
 $$
-\begin{aligned}
-    \phi & = \sum_{i=1}^{\nbasis} \delta\coeff_i\phi_i,
+\begin{align}
+    \ket{\testfunc} & = \sum_{i=1}^{\nbasis} \delta\coeff_i\ket{\testfunc_i},
     \qquad
-    \bar\phi = \sum_{i=1}^{\nbasis} \delta\coeff_i\bar\phi_i,
-\end{aligned}
+    \ket{\bar\testfunc} = \sum_{i=1}^{\nbasis} \delta\coeff_i\ket{\bar\testfunc_i},
+\end{align}
 $$
-where $\delta\coeff_i$ are arbitrary parameters, not related to $\coeff_i$.
-The $\delta\coeff_i$ will play the same role as those in Eq.~\eqref{eq:action_stationary_ansatz}, namely as a bookkeeping method for determining the set of equations that are equivalently zero.
+where $\delta\coeff_i$ are arbitrary parameters, not related to the $\coeff_i$ in Equation @eq-trial_general_subeq.
+The $\delta\coeff_i$ will play the same role as those in Equation @eq-action_stationary_ansatz}, namely as a bookkeeping method for determining the set of equations that are equivalently zero.
 By enforcing that the residuals against these test functions vanish for arbitrary $\delta\coeff_i$, the bracketed expression in
 $$
-    \delta\coeff_i \Bigl[\int_{\Omega} \dd{\Omega}  \phi_i  D(X\coeffs_\star) +  \int_{\Gamma} \dd{\Gamma} \bar\phi_i  B(X\coeffs_\star)
-    \Bigl]= 0,
+\begin{align}
+%    \delta\coeff_i \Bigl[\sum_j \braket{\psi_i | D |\psi_j} \beta_j  +  \sum_j \braket{\bar\phi_i | B |\psi_j} \beta_j
+ %   \Bigl] = 0,  \\
+    \delta\coeff_i \Bigl[\int_{\Omega} \dd{\Omega}  \testfunc_i  D(X\coeffsopt) +  \int_{\Gamma} \dd{\Gamma} \bar\testfunc_i  B(X\coeffsopt)
+    \Bigl]= 0, %\label{eq-weak_form_subspace}
+\end{align}
 $$ {#eq-weak_form_subspace}
-is zero for all $i \in [1, \nbasis]$, from which the optimal $\coeffs_\star$ are extracted.
-Because this approximately satisfies the weak formulation, we have found an approximate solution to @eq-generic_differential_and_boundary.
+is zero for all $i \in [1, \nbasis]$, from which the optimal $\coeffsopt$ are extracted.
+Because this approximately satisfies the weak formulation, we have found an approximate solution to Equation @eq-generic_differential_and_boundary.
 
-In a variety of cases [@zienkiewicz2013finite], the test function basis is chosen to coincide with the trial function basis $X$, \ie, $\phi_i = \bar\phi_i = \psi_i$.
-This particular choice is known as *the* Galerkin method, but it is sometimes further specified as the Ritz-Galerkin or Bubnov-Galerkin methods.
-However, the method of weighted residuals is more general than the variational methods described in @sec-variational because the test space need not be equivalent to the trial space (\ie, $\phi_i \neq \psi_i$).
-In these cases, the approach is described as the Petrov-Galerkin method [@zienkiewicz2013finite];
-this can result in more efficient emulators for some differential equations [@Zienkiewicz2014finitefluid].
-
-Under the Ritz-Galerkin assumption for the test space we can derive the reduced-order model for the case of a linear operator: $D(\psi) = D\ket{\psi} + \ket{b}$.
-If we ignore the boundary condition for simplicity, it then follows from @eq-weak_form_subspace that
-$$
-    \subspace D \coeffs_\star + \vec{b} = 0,
-$$
-where $\subspace D = X^\dagger D X$ and $b_i = \braket{b | \psi_i}$.
-Just like in @sec-variational, we have arrived at a linear problem for the solution to $\coeffs_\star$ and insofar as $\nbasis$ is small compared to the size of $\psi$, this will yield improvements to the time it takes to obtain a solution for $\coeffs_\star$.
-Further speedups are available if $D$ and $\ket{b}$ are affine in the parameters $\param$ so that $\subspace D$ and $\vec{b}$ can be efficiently recomputed in the online phase---see @sec-eigen-emulators and @sec-variational.
-
-
-
-
-
-## Snapshots
+In a variety of cases \cite{zienkiewicz2013finite}, the subspace $\mathcal{Z}$ spanned by the test function basis is chosen to coincide with the subspace $\mathcal{X}$ spanned by the trial function basis $X$; _i.e._, $\mathcal{Z} = \mathcal{X}$.
+This particular choice is known as _the_ Galerkin method, but it is sometimes further specified as the Ritz--Galerkin or Bubnov--Galerkin methods.
+The Galerkin method is more general than the variational methods described in Section @sec-variational because the test space need not be equivalent to the trial space (_i.e._, $\mathcal{Z} \neq \mathcal{X}$).
+In these cases, the approach is described as the Petrov--Galerkin method @zienkiewicz2013finite;
+this can result in more efficient emulators for some differential equations @Zienkiewicz2014finitefluid.
