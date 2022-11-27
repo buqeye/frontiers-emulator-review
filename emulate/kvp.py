@@ -250,8 +250,8 @@ class BaseKohnEmulator:
                 #     psi_left = k**2 * dk * psi_train[:, i]
                 #     psi_right = k**2 * dk * psi_train[:, j]
 
-                psi_left = Sp + psi_train[:, i]
-                psi_right = Sp + psi_train[:, j]
+                psi_left = Sp + (2 / np.pi) * psi_train[:, i]
+                psi_right = Sp + (2 / np.pi) * psi_train[:, j]
 
                 # psi_left = psi_left + Sp
                 # psi_right = psi_right + Sp
@@ -269,8 +269,8 @@ class BaseKohnEmulator:
                     psi_right,
                 )
 
-        self.dU0 = dU0 * self.q_cm[:, None, None]
-        self.dU1 = dU1 * self.q_cm[:, None, None, None]
+        self.dU0 = dU0 * self.q_cm[:, None, None] * (np.pi / 2)
+        self.dU1 = dU1 * self.q_cm[:, None, None, None] * (np.pi / 2)
         self.p_train = p_train
         self.n_train = n_train
         self.psi_train = psi_train
@@ -372,13 +372,6 @@ class BaseKohnEmulator:
             coefficients,
             # optimize=self._c_dU_c_opt_path,
         )
-        # return np.einsum("qn,nq->q", coefficients, self.K_train) - 0.5 * np.einsum(
-        #     "qn,qnm,qm->q", coefficients, dU, coefficients
-        # )
-        # return np.einsum("qn,nq->q", coefficients, -self.K_train) - 0.5 * np.einsum(
-        #     "qn,qnm,qm->q", coefficients, dU, coefficients
-        # )
-        # return np.einsum("qn,nq->q", coefficients, self.K_train)
 
 
 class KohnLippmannSchwingerEmulator(BaseKohnEmulator):
@@ -480,13 +473,12 @@ class SeparableKohnMixin:
         K_train = np.array([self.reactance(p_i, include_q=True) for p_i in p_train])
 
         n = self.n_form_factors
-        # m1 = np.zeros((self.n_q, n_train, self.n_p))
         dU0 = np.zeros((self.n_q, n_train, n_train))
         dU1 = np.zeros((self.n_q, n_train, n_train, self.n_p))
 
         for i in range(n_train):
             for j in range(i, n_train):
-                dU0[:, i, j] = -(
+                dU0[:, i, j] = dU0[:, j, i] = -(
                     np.einsum("cq,cd,dq->q", v_q, Lambda[i] + Lambda[j], v_q)
                     + np.einsum("cq,qcd,qde,ef,fq->q", v_q, tau[i], vGv, Lambda[j], v_q)
                     + np.einsum("cq,qcd,qde,ef,fq->q", v_q, tau[j], vGv, Lambda[i], v_q)
@@ -513,7 +505,6 @@ class SeparableKohnMixin:
                         v_q,
                     )
                 )
-                dU0[:, j, i] = dU0[:, i, j]
 
         dU1_init = (
             2 * np.einsum("aq,bq->qab", v_q, v_q)[:, None, None, :, :]
@@ -539,8 +530,8 @@ class SeparableKohnMixin:
 
         self.p_train = p_train
         self.K_train = K_train
-        self.dU0 = dU0 * self.q_cm[:, None, None]
-        self.dU1 = dU1 * self.q_cm[:, None, None, None]
+        self.dU0 = dU0 * self.q_cm[:, None, None] * np.pi / 2
+        self.dU1 = dU1 * self.q_cm[:, None, None, None] * np.pi / 2
 
         n_q = self.n_q
 
@@ -585,7 +576,7 @@ class SeparableKohnMixin:
         )
 
 
-class SeparableKohnEmulator(SeparableMixin, SeparableKohnMixin, BaseKohnEmulator):
+class SeparableKohnEmulator(SeparableKohnMixin, SeparableMixin, BaseKohnEmulator):
     def __init__(
         self,
         v_r,
@@ -899,7 +890,6 @@ class AlternateKohnEmulator:
         dU = self.compute_dU(p)
         dU = dU + self.nugget * np.eye(dU.shape[-1])
         rhs = self.rhs0 + self.rhs1 @ p
-        # print(rhs.shape, self.K_train.shape)
 
         if self.use_lagrange_multiplier:
             n_q = self.n_q
@@ -961,3 +951,96 @@ class AlternateKohnEmulator:
             K_on = q_cm * np.einsum("ij,ij->i", Sp, K_half)
             return psi, K_on
         return psi
+
+
+class AlternateSeparableKohnMixin:
+    def fit(self, p_train):
+        v_q = self.compute_v_on_shell()
+        tau = np.array([self.compute_reactance_strength_matrix(p_i) for p_i in p_train])
+        Lambda = np.array([self.compute_strength_matrix(p_i) for p_i in p_train])
+        vGv = self.compute_vGv_matrix()
+        self.n_train = n_train = len(p_train)
+        # K_train = np.array([self.reactance(p_i, include_q=True) for p_i in p_train])
+
+        n = self.n_form_factors
+        c0 = np.zeros((self.n_q, n_train))
+        c1 = np.zeros((self.n_q, n_train, self.n_p))
+        C0 = np.zeros((self.n_q, n_train, n_train))
+        C1 = np.zeros((self.n_q, n_train, n_train, self.n_p))
+
+        c1_init = np.einsum("cq,iqcd,qda,bq->qiab", v_q, tau, vGv, v_q)
+        C0 = np.einsum(
+            "cq,iqcd,qda,jab,bq->qij", v_q, tau, vGv, Lambda, v_q
+        ) + np.einsum(
+            "cq,iqcd,qda,jab,qbe,jqef,fq->qij", v_q, tau, vGv, Lambda, vGv, tau, v_q
+        )
+        C1_init = -np.einsum(
+            "cq,iqcd,qda,qbe,jqef,fq->qijab", v_q, tau, vGv, vGv, tau, v_q
+        )
+
+        upper_triangular_indices = [(xx, yy) for xx in range(n) for yy in range(xx, n)]
+        param_idx = dict(
+            zip(upper_triangular_indices, np.arange(len(upper_triangular_indices)))
+        )
+
+        # Turn the matrix quantities into vectors that one can take a dot product with a parameter vector
+        for a, b in upper_triangular_indices:
+            # The matrices are symmetric, take upper triangular and multiply off-diagonals by 2
+            mult_ab = 1 if a == b else 2
+            pp = param_idx[a, b]
+            c1[..., pp] = mult_ab * c1_init[..., a, b]
+            C1[..., pp] = mult_ab * C1_init[..., a, b]
+
+        self.p_train = p_train
+        self.c0 = c0
+        self.c1 = c1
+        self.C0 = C0
+        self.C1 = C1
+
+        V1_on_shell = []
+        v_q = self.compute_v_on_shell()
+        for i in range(self.n_form_factors):
+            for j in range(i, self.n_form_factors):
+                if i != j:
+                    V1_on_shell.append(v_q[i] * v_q[j] + v_q[j] * v_q[i])
+                else:
+                    V1_on_shell.append(v_q[i] * v_q[j])
+        V1_on_shell = np.array(V1_on_shell).T
+
+        self.V0_on_shell = np.zeros(V1_on_shell.shape[:-1])
+        self.V1_on_shell = V1_on_shell
+
+
+class AlternateKohnYamaguchiEmulator(
+    AlternateSeparableKohnMixin, SeparableYamaguchiMixin
+):
+    def __init__(self, beta, q_cm, nugget=0, hbar2_over_2mu=1):
+        self.beta = beta
+        self.hbar2_over_2mu = hbar2_over_2mu
+        self.q_cm = q_cm
+        self.nugget = nugget
+        self.n_form_factors = len(beta)
+        self.ell = 0
+        self.n_q = len(q_cm)
+        self.n_p = int(self.n_form_factors * (self.n_form_factors + 1) / 2)
+
+    def coefficients(self, p):
+        c = self.c0 + self.c1 @ p
+        C = self.C0 + self.C1 @ p
+        C = C + self.nugget * np.eye(C.shape[-1])
+        return np.linalg.solve(C, c)
+
+    def emulate_reactance(self, p):
+        V_on_shell = self.V0_on_shell + self.V1_on_shell @ p
+        coeff = self.coefficients(p)
+        C = self.C0 + self.C1 @ p
+        C = C + 2 * self.nugget * np.eye(C.shape[-1])
+        K = V_on_shell + np.einsum("qi,qij,qj->q", coeff, C, coeff)
+        K = K * self.q_cm * np.pi / 2
+        return K
+
+    def predict(self, p, full_space=False):
+        if full_space:
+            return self.reactance(p, include_q=True)
+        else:
+            return self.emulate_reactance(p)
