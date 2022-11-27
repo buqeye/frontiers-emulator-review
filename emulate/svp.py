@@ -330,5 +330,3 @@ class SchwingerYamaguchiEmulator(
         self.ell = 0
         self.n_q = len(q_cm)
         self.n_p = int(self.n_form_factors * (self.n_form_factors + 1) / 2)
-        # self.boundary_condition = BoundaryCondition.STANDING
-        # self.is_coupled = False
