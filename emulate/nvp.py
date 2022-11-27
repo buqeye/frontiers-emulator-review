@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from itertools import product
 from typing import Dict
 
 from .constants import pi
@@ -13,6 +14,7 @@ from .utils import (
     t_matrix_outgoing_to_standing,
     fix_phases_continuity,
 )
+from .separable import SeparableYamaguchiMixin
 
 
 class NewtonEmulator:
@@ -272,7 +274,7 @@ class NewtonEmulator:
         p,
         return_phase: bool = False,
         full_space: bool = False,
-        return_gradient=False,
+        return_gradient: bool = False,
     ):
         """Returns the on-shell reactance matrix (or phase shifts) either via emulation or the full-space calculation.
 
@@ -798,3 +800,138 @@ class NewtonEmulator:
         if fix:
             ps = fix_phases_continuity(ps, is_radians=False)
         return ps
+
+
+class SeparableNewtonMixin:
+    """Overrides the `fit` method for the NVP to take advantage of the separable structure of the potential.
+
+    Relies on the methods defined in the SeparableMixin,
+    which should also be included in any subclasses that use this mixin
+    """
+
+    @staticmethod
+    def _off_diagonal_multiplier(i, j):
+        if i == j:
+            return 1
+        return 2
+
+    def fit(self, p_train):
+
+        v_q = self.compute_v_on_shell()
+        tau = np.array([self.compute_reactance_strength_matrix(p_i) for p_i in p_train])
+        vGv = self.compute_vGv_matrix()
+        self.n_train = n_train = len(p_train)
+        K_train = np.array([self.reactance(p_i, include_q=True) for p_i in p_train])
+
+        n = self.n_form_factors
+        m0 = np.zeros((self.n_q, n_train))
+        m1 = np.zeros((self.n_q, n_train, self.n_p))
+        M0 = np.zeros((self.n_q, n_train, n_train))
+        M1 = np.zeros((self.n_q, n_train, n_train, self.n_p))
+
+        upper_triangular_indices = [(xx, yy) for xx in range(n) for yy in range(xx, n)]
+        param_idx = dict(
+            zip(upper_triangular_indices, np.arange(len(upper_triangular_indices)))
+        )
+
+        m1_init = np.einsum("cq,iqcd,qda,bq->qiab", v_q, tau, vGv, v_q) + np.einsum(
+            "aq,qbc,iqcd,dq->qiab", v_q, vGv, tau, v_q
+        )
+        M0 = np.einsum("cq,iqcd,qde,jqef,fq->qij", v_q, tau, vGv, tau, v_q) + np.einsum(
+            "cq,jqcd,qde,iqef,fq->qij", v_q, tau, vGv, tau, v_q
+        )
+        M1_init = -np.einsum(
+            "cq,iqcd,qda,qbe,jqef,fq->qijab", v_q, tau, vGv, vGv, tau, v_q
+        ) - np.einsum("cq,jqcd,qda,qbe,iqef,fq->qijab", v_q, tau, vGv, vGv, tau, v_q)
+
+        # Turn the matrix quantities into vectors that one can take a dot product with a parameter vector
+        for a, b in upper_triangular_indices:
+            # The matrices are symmetric, take upper triangular and multiply off-diagonals by 2
+            mult_ab = self._off_diagonal_multiplier(a, b)
+            pp = param_idx[a, b]
+            m1[..., pp] = mult_ab * m1_init[..., a, b]
+            M1[..., pp] = mult_ab * M1_init[..., a, b]
+
+        self.p_train = p_train
+        self.K_train = K_train
+        self.m0_vec = m0
+        self.m1_vec = m1
+        self.M0 = M0
+        self.M1 = M1
+
+    def predict(
+        self,
+        p,
+        return_phase: bool = False,
+        full_space: bool = False,
+    ):
+        """Returns the on-shell reactance matrix (or phase shifts) either via emulation or the full-space calculation.
+
+        Parameters
+        ----------
+        p :
+            The parameters upon which the potential depends
+        return_phase :
+            If True, this will return phase shifts (in degrees) rather than the K matrix. Defaults to False
+        full_space :
+            If True, this will compute the quantity using the full-space simulator, rather than the emulator.
+            Defaults to False.
+
+        Returns
+        -------
+        quantity : shape = (n_q_cm,)
+            Either the on-shell reactance matrix or the phase shifts
+        """
+        if full_space:
+            # out = self.reactance(p, shell="on", return_gradient=return_gradient)
+            K = self.reactance(p, include_q=True)
+        else:
+            V = self.on_shell_potential(p)
+            m_vec = self.m_vec(p)
+            M = self.M_mat(p)
+            M = M + self.nugget * np.eye(M.shape[-1])  # New, double counts the nugget
+
+            # Old
+            # Minv_m = np.linalg.solve(M, m_vec)
+            # K = V + 0.5 * (m_vec * Minv_m).sum(axis=-1)
+
+            # New
+            c = self.coefficients(p)
+            K = V + 0.5 * np.einsum("qi,qij,qj->q", c, M, c)
+
+            q_cm = self.q_cm
+            K *= q_cm * pi / 2
+
+        if return_phase:
+            # TODO: Handle gradients?
+            return self.phase_shifts(K)
+        return K
+
+
+class NewtonYamaguchiEmulator(
+    SeparableYamaguchiMixin, SeparableNewtonMixin, NewtonEmulator
+):
+    def __init__(self, beta, q_cm, nugget=0, hbar2_over_2mu=1):
+        self.beta = beta
+        self.hbar2_over_2mu = hbar2_over_2mu
+        self.q_cm = q_cm
+        self.nugget = nugget
+        self.n_form_factors = len(beta)
+        self.ell = 0
+        self.n_q = len(q_cm)
+        self.boundary_condition = BoundaryCondition.STANDING
+        self.is_coupled = False
+
+        V1_sub = []
+        v_q = self.compute_v_on_shell()
+        for i in range(self.n_form_factors):
+            for j in range(i, self.n_form_factors):
+                if i != j:
+                    V1_sub.append(v_q[i] * v_q[j] + v_q[j] * v_q[i])
+                else:
+                    V1_sub.append(v_q[i] * v_q[j])
+        V1_sub = np.array(V1_sub).T
+
+        self.n_p = V1_sub.shape[-1]
+        self.V0_sub = np.zeros(V1_sub.shape[:-1])
+        self.V1_sub = V1_sub

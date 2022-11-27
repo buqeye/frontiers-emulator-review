@@ -8,43 +8,63 @@ from scipy.integrate import quadrature
 from .constants import hbar_c, pi
 from .types import BoundaryCondition, QuadratureType
 
+
 def FF_1dim(LAM_for_FT, N_for_FT, func_in_p):
     """
-    All the units are in terms of proper power of fm, which is why hbarc is set to 1 here. 
+    All the units are in terms of proper power of fm, which is why hbarc is set to 1 here.
     Note this code right now is for just s-wave!
-    suppose we have a function defined in momentum space, f(p). 
+    suppose we have a function defined in momentum space, f(p).
     The Fourier transformation this code performs is  \int_0^cut_off  d p p^2 j_0(p r) * sqrt(2/pi) * f(p)  = F(r) / r .
-    Please pay attention to the factor of sqrt(2/pi) in the integrand and 1/r factor in the eqn's right hand side.  
- 
+    Please pay attention to the factor of sqrt(2/pi) in the integrand and 1/r factor in the eqn's right hand side.
+
     Parameters
     ----------
-    LAM_for_FT: The largest momentum in the momentum grid. For the Fourier transformation, \int d p is integrated in [-LAM_for_FT, LAM_for_FT] interval 
-    N_for_FT:  the number of small bins in [0, LAM_for_FT]. I.e., there are 2*N_for_FT + 1 mesh points 
+    LAM_for_FT: The largest momentum in the momentum grid. For the Fourier transformation, \int d p is integrated in [-LAM_for_FT, LAM_for_FT] interval
+    N_for_FT:  the number of small bins in [0, LAM_for_FT]. I.e., there are 2*N_for_FT + 1 mesh points
     func_in_p: a function of momentum p. It is this function that needs to be Fourier-transformed from momentum space to the coordiante space.
     ----------
 
     Returns
     --------
-    r_max: the max value of r mesh 
+    r_max: the max value of r mesh
     r_mesh_for_FT: the r mesh [0, r_max]
     tp: F(r_mesh_for_FT)   Note this return doesn't have 1/r factor included in the Fourier transformation
-    plase note the r_max is finite, so when you need values outside r_max, you need to increase N_for_FT so that the r_max is increased. 
+    plase note the r_max is finite, so when you need values outside r_max, you need to increase N_for_FT so that the r_max is increased.
     """
 
-    hbarc = 1 
-    dp_for_FT = LAM_for_FT/N_for_FT 
-    p_mesh_for_FT =  np.arange(N_for_FT+1)*dp_for_FT
-    dr_for_FT = 2*np.pi/(2*N_for_FT+1)/dp_for_FT*hbarc
-    r_mesh_for_FT = np.arange(N_for_FT+1)*dr_for_FT
+    hbarc = 1
+    dp_for_FT = LAM_for_FT / N_for_FT
+    p_mesh_for_FT = np.arange(N_for_FT + 1) * dp_for_FT
+    dr_for_FT = 2 * np.pi / (2 * N_for_FT + 1) / dp_for_FT * hbarc
+    r_mesh_for_FT = np.arange(N_for_FT + 1) * dr_for_FT
     r_max = r_mesh_for_FT[-1]
-    print(f'r_max:{r_max}')
-    p_mesh_ext_for_FT = np.concatenate((p_mesh_for_FT, np.arange(-N_for_FT, 0)*dp_for_FT) )
-    func_p_mesh_ext_for_FT = np.vectorize(func_in_p)(np.absolute(p_mesh_ext_for_FT) ) * p_mesh_ext_for_FT/hbarc/2j *np.sqrt(2/np.pi)
-    func_r_mesh_ext_for_FT_real = np.fft.ifft(func_p_mesh_ext_for_FT.real)*(2*N_for_FT +1)*dp_for_FT/hbarc
-    func_r_mesh_ext_for_FT_imag = np.fft.ifft(func_p_mesh_ext_for_FT.imag)*(2*N_for_FT +1)*dp_for_FT/hbarc
-    tp = (func_r_mesh_ext_for_FT_real + 1j * func_r_mesh_ext_for_FT_imag)[0:N_for_FT+1]
-    return r_max, r_mesh_for_FT, tp 
-
+    print(f"r_max:{r_max}")
+    p_mesh_ext_for_FT = np.concatenate(
+        (p_mesh_for_FT, np.arange(-N_for_FT, 0) * dp_for_FT)
+    )
+    func_p_mesh_ext_for_FT = (
+        np.vectorize(func_in_p)(np.absolute(p_mesh_ext_for_FT))
+        * p_mesh_ext_for_FT
+        / hbarc
+        / 2j
+        * np.sqrt(2 / np.pi)
+    )
+    func_r_mesh_ext_for_FT_real = (
+        np.fft.ifft(func_p_mesh_ext_for_FT.real)
+        * (2 * N_for_FT + 1)
+        * dp_for_FT
+        / hbarc
+    )
+    func_r_mesh_ext_for_FT_imag = (
+        np.fft.ifft(func_p_mesh_ext_for_FT.imag)
+        * (2 * N_for_FT + 1)
+        * dp_for_FT
+        / hbarc
+    )
+    tp = (func_r_mesh_ext_for_FT_real + 1j * func_r_mesh_ext_for_FT_imag)[
+        0 : N_for_FT + 1
+    ]
+    return r_max, r_mesh_for_FT, tp
 
 
 def markdown_class_method(cls, method):
@@ -161,40 +181,6 @@ def gaussian_radial_fourier_transform(x, a):
     return np.sqrt(2 / pi) * np.exp(-(x**2) / (4.0 * a)) * np.sqrt(pi / a) / (4 * a)
 
 
-def yamaguchi_form_factor_momentum_space(k, beta, ell=0, hbar2_over_2mu=1):
-    """
-
-    Comes from Eq (27) in Ref [1].
-
-    References
-    ----------
-    [1] Momentum-Space Probability Density of 6He in Halo Effective Field Theory
-        https://doi.org/10.1007/s00601-019-1528-6
-    """
-    return hbar2_over_2mu ** (-0.5) * k**ell / (beta**2 + k**2) ** (ell + 1)
-
-
-def yamaguchi_form_factor_position_space(r, beta, ell=0, hbar2_over_2mu=1):
-    """
-
-    The fourier transform of Eq (27) in Ref [1].
-
-    References
-    ----------
-    [1] Momentum-Space Probability Density of 6He in Halo Effective Field Theory
-        https://doi.org/10.1007/s00601-019-1528-6
-    """
-    from scipy.special import gamma
-
-    return (
-        hbar2_over_2mu ** (-0.5)
-        * np.sqrt(pi / 2)
-        * np.exp(-beta * r)
-        * r ** (ell - 1)
-        / (gamma(ell + 1) * 2**ell)
-    )
-
-
 def minnesota_potential_coordinate(r, kappa):
     return np.exp(-kappa * r**2)
 
@@ -237,28 +223,6 @@ def schrodinger_residual(psi, V, r, dr, q_cm, ell, is_local):
     else:
         Vu = (dr * u) @ (V * r[:, None] * r)
     return -d2_u + angular * u + Vu - q_cm**2 * u
-
-
-def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
-    pre = 4 * beta * strength * (pi / 2)
-    if include_q:
-        pre = pre * q_cm
-    return pre / (
-        4 * beta * (beta**2 + q_cm**2) ** 2
-        + pi * strength * (beta**2 - q_cm**2)
-    )
-
-
-def yamaguchi_radial_wave_function(r, q_cm, beta, strength):
-    from scipy.special import spherical_jn
-
-    j_ell = spherical_jn(0, r * q_cm)
-    pre = (2 * pi * beta * strength) / (
-        4 * beta * (beta**2 + q_cm**2) ** 2
-        + pi * strength * (beta**2 - q_cm**2)
-    )
-    psi = j_ell - pre * (np.cos(q_cm * r) - np.exp(-beta * r)) / r
-    return psi
 
 
 def greens_function_free_space(

@@ -17,6 +17,8 @@ from .utils import fourier_transform_partial_wave
 from .utils import gaussian_radial_fourier_transform
 from .utils import cubic_spline_matrix
 
+from .separable import yamaguchi_form_factor_momentum_space
+from .separable import yamaguchi_form_factor_position_space
 
 from .eigen import EigenEmulator
 from .eigen import OscillatorEmulator
@@ -26,3 +28,4 @@ from .eigen import BoundStateOperator
 from .kvp import SeparableKohnEmulator
 from .kvp import KohnLippmannSchwingerEmulator
 from .nvp import NewtonEmulator
+from .svp import SchwingerSeparableEmulator
