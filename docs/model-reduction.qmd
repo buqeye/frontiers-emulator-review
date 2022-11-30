@@ -40,7 +40,7 @@ The second instead constructs the corresponding _weak form_ of Equation @eq-gene
 
 ## Variational principles {#sec-variational}
 
-Variational principles (VPs) have a long history in physics and play a central role in a wide range of applications; _e.g._, for deriving equations of motion using stationary-action principles and Euler--Lagrange equations in classical mechanics (see, _e.g._, Ref. [@Variational_Ritz_history_review_2012] for a historical overview).
+Variational principles (VPs) have a long history in physics and play a central role in a wide range of applications; _e.g._, for deriving equations of motion using stationary-action principles and Euler--Lagrange equations in classical mechanics (see, _e.g._, Reference [@Variational_Ritz_history_review_2012] for a historical overview).
 Here, we use VPs as an alternate way of solving  the differential equations @eq-generic_differential_and_boundary.
 
 Variational principles are based on scalar functionals of the form
@@ -94,7 +94,7 @@ Therefore, as long as $\{\trialfunc_i\}_{i=1}^{\nbasis}$ approximately spans the
 ## Galerkin Emulators
 
 On the other hand, the Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations in Equation @eq-generic_differential_and_boundary.
-To obtain the weak form, the differential equation and boundary condition (in Equation @eq-generic_differential_and_boundary}) are left-multiplied by arbitrary test functions $\testfunc$ and $\bar\testfunc$ and integrated over the domain and boundary, respectively, and then their sum is set to zero:
+To obtain the weak form, the differential equation and boundary condition (in Equation @eq-generic_differential_and_boundary) are left-multiplied by arbitrary test functions $\testfunc$ and $\bar\testfunc$ and integrated over the domain and boundary, respectively, and then their sum is set to zero:
 $$
 \begin{equation} %\label{eq-weak_differential}
     \int_\Omega \dd{\Omega} \testfunc  D(\trialfunc) + \int_\Gamma \dd{\Gamma} \bar\testfunc  B(\trialfunc) = 0.
