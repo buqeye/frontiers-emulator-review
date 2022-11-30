@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.special import spherical_jn
+
 from .constants import pi
 
 
@@ -83,12 +85,15 @@ class SeparableYamaguchiMixin(SeparableMixin):
     """
 
     def _compute_vGv(self, beta1, beta2):
-        q = self.q_cm
-        beta_sq = beta1 * beta2
-        beta = (beta1 + beta2) / 2.0
-        num = -np.pi * (beta_sq - q**2) / self.hbar2_over_2mu
-        den = 4 * beta * (beta1**2 + q**2) * (beta2**2 + q**2)
-        return num / den
+        return vGv_yamaguchi(
+            beta1, beta2, q_cm=self.q_cm, hbar2_over_2mu=self.hbar2_over_2mu
+        )
+        # q = self.q_cm
+        # beta_sq = beta1 * beta2
+        # beta = (beta1 + beta2) / 2.0
+        # num = -np.pi * (beta_sq - q**2) / self.hbar2_over_2mu
+        # den = 4 * beta * (beta1**2 + q**2) * (beta2**2 + q**2)
+        # return num / den
 
     def compute_vGv_matrix(self):
         n_dim = self.n_form_factors
@@ -122,6 +127,27 @@ class SeparableYamaguchiMixin(SeparableMixin):
         if include_q:
             K_half *= self.q_cm
         return K_half.T
+
+    def _predict_wave_function_s_wave(self, p, r):
+        tau = self.compute_reactance_strength_matrix(p)
+        q = self.q_cm[:, None]
+        v_q = self.compute_v_on_shell()
+        j0 = spherical_jn(0, r * q)
+        chi = np.zeros_like(j0, dtype=np.float64)
+        for i in range(self.n_form_factors):
+            for j in range(self.n_form_factors):
+                K_ij = np.pi / 2 * (v_q[i] * tau[:, i, j] * v_q[j])[:, None]
+                chi -= K_ij * (np.cos(q * r) - np.exp(-self.beta[i] * r)) / r
+        return j0 + chi
+
+
+def vGv_yamaguchi(beta1, beta2, q_cm, hbar2_over_2mu):
+    q = q_cm
+    beta_sq = beta1 * beta2
+    beta = (beta1 + beta2) / 2.0
+    num = -np.pi * (beta_sq - q**2) / hbar2_over_2mu
+    den = 4 * beta * (beta1**2 + q**2) * (beta2**2 + q**2)
+    return num / den
 
 
 def yamaguchi_form_factor_momentum_space(k, beta, ell=0, hbar2_over_2mu=1):
@@ -158,8 +184,10 @@ def yamaguchi_form_factor_position_space(r, beta, ell=0, hbar2_over_2mu=1):
     )
 
 
-def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
-    pre = 4 * beta * strength * (pi / 2)
+def yamaguchi_scattering_amplitude(
+    q_cm, beta, strength, include_q=True, hbar2_over_2mu=1
+):
+    pre = 4 * beta * strength * (pi / 2) / hbar2_over_2mu
     if include_q:
         pre = pre * q_cm
     return pre / (
@@ -168,13 +196,25 @@ def yamaguchi_scattering_amplitude(q_cm, beta, strength, include_q=True):
     )
 
 
-def yamaguchi_radial_wave_function(r, q_cm, beta, strength):
+def yamaguchi_radial_wave_function(r, q_cm, beta, strength, hbar2_over_2mu=1):
     from scipy.special import spherical_jn
 
     j_ell = spherical_jn(0, r * q_cm)
-    pre = (2 * pi * beta * strength) / (
+    pre = (2 * pi * beta * strength / hbar2_over_2mu) / (
         4 * beta * (beta**2 + q_cm**2) ** 2
         + pi * strength * (beta**2 - q_cm**2)
     )
     psi = j_ell - pre * (np.cos(q_cm * r) - np.exp(-beta * r)) / r
     return psi
+
+
+# def yamaguchi_radial_wave_function_rank_n(r, q_cm, betas, strength, hbar2_over_2mu=1):
+#     from scipy.special import spherical_jn
+
+#     j_ell = spherical_jn(0, r * q_cm)
+#     pre = (2 * pi * beta * strength) / (
+#         4 * beta * (beta**2 + q_cm**2) ** 2
+#         + pi * strength * (beta**2 - q_cm**2)
+#     )
+#     psi = j_ell - pre * (np.cos(q_cm * r) - np.exp(-beta * r)) / r
+#     return psi

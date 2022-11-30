@@ -470,7 +470,9 @@ class SeparableKohnMixin:
         Lambda = np.array([self.compute_strength_matrix(p_i) for p_i in p_train])
         vGv = self.compute_vGv_matrix()
         self.n_train = n_train = len(p_train)
-        K_train = np.array([self.reactance(p_i, include_q=True) for p_i in p_train])
+
+        psi_train, K_train = self._create_snapshots(p_train)
+        # K_train = np.array([self.reactance(p_i, include_q=True) for p_i in p_train])
 
         n = self.n_form_factors
         dU0 = np.zeros((self.n_q, n_train, n_train))
@@ -529,6 +531,7 @@ class SeparableKohnMixin:
             dU1[..., pp] = mult_ab * dU1_init[..., a, b]
 
         self.p_train = p_train
+        self.psi_train = psi_train
         self.K_train = K_train
         self.dU0 = dU0 * self.q_cm[:, None, None] * np.pi / 2
         self.dU1 = dU1 * self.q_cm[:, None, None, None] * np.pi / 2
@@ -562,18 +565,6 @@ class SeparableKohnMixin:
             return self.reactance(p, include_q=True)
         else:
             return self.emulate_reactance(p)
-
-    def predict_wave_function(self, p, r):
-        psi = np.array(
-            [
-                yamaguchi_radial_wave_function(
-                    r=r,
-                    q_cm=self.q_cm,
-                    beta=beta,
-                )
-                for beta in self.beta
-            ]
-        )
 
 
 class SeparableKohnEmulator(SeparableKohnMixin, SeparableMixin, BaseKohnEmulator):
@@ -721,7 +712,13 @@ class KohnYamaguchiEmulator(
     SeparableYamaguchiMixin, SeparableKohnMixin, BaseKohnEmulator
 ):
     def __init__(
-        self, beta, q_cm, nugget=0, hbar2_over_2mu=1, use_lagrange_multiplier=False
+        self,
+        beta,
+        q_cm,
+        nugget=0,
+        hbar2_over_2mu=1,
+        use_lagrange_multiplier=False,
+        r=None,
     ):
         self.beta = beta
         self.hbar2_over_2mu = hbar2_over_2mu
@@ -732,6 +729,41 @@ class KohnYamaguchiEmulator(
         self.n_q = len(q_cm)
         self.n_p = int(self.n_form_factors * (self.n_form_factors + 1) / 2)
         self.use_lagrange_multiplier = use_lagrange_multiplier
+
+        if r is None:
+            r = np.linspace(1e-5, 10, 101)
+        self.r = r
+
+    def predict_wave_function(self, p, return_K=False, r=None):
+        if r is None:
+            r = self.r
+        if self.ell != 0:
+            raise ValueError(
+                f"ell must be 0, not {self.ell}. The wave function does not support other values currently."
+            )
+        psi = self._predict_wave_function_s_wave(p, r)
+        if return_K:
+            K = self.reactance(p, include_q=True)
+            return psi, K
+        return psi
+
+    def emulate_wave_function(self, p, return_K=False, r=None):
+        if r is None:
+            psi_train = self.psi_train
+        else:
+            psi_train = np.array(
+                [
+                    self.predict_wave_function(p_i, return_K=False, r=r)
+                    for p_i in self.p_train
+                ]
+            )
+            psi_train = np.array(psi_train).transpose(1, 0, 2)
+        c = self.coefficients(p)
+        psi = np.einsum("kjr,kj->kr", psi_train, c)
+        if return_K:
+            K = self.emulate_reactance(p, coefficients=c)
+            return psi, K
+        return psi
 
 
 class AlternateKohnEmulator:
@@ -955,6 +987,12 @@ class AlternateKohnEmulator:
 
 class AlternateSeparableKohnMixin:
     def fit(self, p_train):
+        psi_train = []
+        for p in p_train:
+            psi_i = self.predict_wave_function(p)
+            psi_train.append(psi_i)
+        psi_train = np.array(psi_train).transpose(1, 0, 2)
+
         v_q = self.compute_v_on_shell()
         tau = np.array([self.compute_reactance_strength_matrix(p_i) for p_i in p_train])
         Lambda = np.array([self.compute_strength_matrix(p_i) for p_i in p_train])
@@ -992,6 +1030,7 @@ class AlternateSeparableKohnMixin:
             C1[..., pp] = mult_ab * C1_init[..., a, b]
 
         self.p_train = p_train
+        self.psi_train = psi_train
         self.c0 = c0
         self.c1 = c1
         self.C0 = C0
@@ -1014,7 +1053,7 @@ class AlternateSeparableKohnMixin:
 class AlternateKohnYamaguchiEmulator(
     AlternateSeparableKohnMixin, SeparableYamaguchiMixin
 ):
-    def __init__(self, beta, q_cm, nugget=0, hbar2_over_2mu=1):
+    def __init__(self, beta, q_cm, nugget=0, hbar2_over_2mu=1, r=None):
         self.beta = beta
         self.hbar2_over_2mu = hbar2_over_2mu
         self.q_cm = q_cm
@@ -1023,6 +1062,11 @@ class AlternateKohnYamaguchiEmulator(
         self.ell = 0
         self.n_q = len(q_cm)
         self.n_p = int(self.n_form_factors * (self.n_form_factors + 1) / 2)
+
+        if r is None:
+            r = np.linspace(1e-5, 10, 101)
+        self.r = r
+        self.j_q = spherical_jn(n=self.ell, z=r * self.q_cm[:, None])
 
     def coefficients(self, p):
         c = self.c0 + self.c1 @ p
@@ -1044,3 +1088,38 @@ class AlternateKohnYamaguchiEmulator(
             return self.reactance(p, include_q=True)
         else:
             return self.emulate_reactance(p)
+
+    def predict_wave_function(self, p, return_K=False, r=None):
+        if r is None:
+            r = self.r
+        if self.ell != 0:
+            raise ValueError(
+                f"ell must be 0, not {self.ell}. The wave function does not support other values currently."
+            )
+        psi = self._predict_wave_function_s_wave(p, r)
+        if return_K:
+            K = self.reactance(p, include_q=True)
+            return psi, K
+        return psi
+
+    def emulate_wave_function(self, p, return_K=False, r=None):
+        if r is None:
+            psi_train = self.psi_train
+        else:
+            psi_train = np.array(
+                [
+                    self.predict_wave_function(p_i, return_K=False, r=r)
+                    for p_i in self.p_train
+                ]
+            )
+            psi_train = np.array(psi_train).transpose(1, 0, 2)
+        c = self.coefficients(p)
+        j_q = self.j_q
+        chi_train = psi_train - j_q[:, None, :]
+        psi = j_q + np.einsum("kjr,kj->kr", chi_train, c)
+        # c = self.coefficients(p)
+        # psi = np.einsum("kjr,kj->kr", psi_train, c)
+        if return_K:
+            K = self.emulate_reactance(p, coefficients=c)
+            return psi, K
+        return psi

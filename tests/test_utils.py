@@ -14,15 +14,22 @@ from emulate import CompoundMesh
 from emulate import fourier_transform_partial_wave
 from emulate import gaussian_radial_fourier_transform
 from emulate.utils import (
-    yamaguchi_form_factor_momentum_space,
-    yamaguchi_form_factor_position_space,
-    yamaguchi_radial_wave_function,
-    yamaguchi_scattering_amplitude,
     schrodinger_residual,
     minnesota_potential_coordinate,
     minnesota_potential_momentum_1S0,
 )
-from emulate import NewtonEmulator, BoundaryCondition, KohnLippmannSchwingerEmulator
+from emulate.separable import (
+    yamaguchi_form_factor_momentum_space,
+    yamaguchi_form_factor_position_space,
+    yamaguchi_radial_wave_function,
+    yamaguchi_scattering_amplitude,
+)
+from emulate import (
+    NewtonEmulator,
+    BoundaryCondition,
+    KohnLippmannSchwingerEmulator,
+    KohnYamaguchiEmulator,
+)
 
 
 def test_fourier_transform():
@@ -166,6 +173,60 @@ def test_yamaguchi_wave_function(ell):
     # When it is inserted in the Schrodinger equation with a non-local Yamaguchi external potential
     f_r = yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell)
     V_r = f_r[:, None] * f_r * strength
+    residual = schrodinger_residual(
+        psi=psi_ell,
+        V=V_r,
+        r=r,
+        dr=dr,
+        q_cm=q_cm[:, None],
+        ell=ell,
+        is_local=False,
+    )
+    # And endpoint effects are removed (due to numerical gradients)
+    residual = residual[..., 2:-2]
+
+    # Then the residual should be almost zero
+    np.testing.assert_allclose(
+        actual=residual, desired=np.zeros_like(residual), atol=1e-2, rtol=1
+    )
+
+
+@pytest.mark.parametrize("ell", [0])
+def test_rank_n_yamaguchi_wave_function(ell):
+    # Rule: The rank-n Yamaguchi wave function should satisfy the Schrodinger equation
+
+    # Given a Yamaguchi wave function on a quadrature mesh in position space
+    # And a choice of angular momentum, ell
+    n_intervals = 51
+    mesh = CompoundMesh(
+        np.linspace(0, 20, n_intervals), 100 * np.ones(n_intervals - 1, dtype=int)
+    )
+    r, dr = mesh.x, mesh.w
+    # n_r = len(r)
+    q_cm = np.array([0.1, 1, 2])
+    betas = [0.5, 2]
+    strength = np.array([1, 2, 3])
+
+    kvp = KohnYamaguchiEmulator(beta=betas, q_cm=q_cm)
+    psi_ell = kvp.predict_wave_function(p=strength, r=r)
+
+    # When it is inserted in the Schrodinger equation with a non-local Yamaguchi external potential
+    v_r = np.array(
+        [
+            yamaguchi_form_factor_position_space(r=r, beta=beta, ell=ell)
+            for beta in betas
+        ]
+    )
+    n_form_factors = len(betas)
+    V1 = []
+    for i in range(n_form_factors):
+        for j in range(i, n_form_factors):
+            if i != j:
+                V1.append(v_r[i][:, None] * v_r[j] + v_r[j][:, None] * v_r[i])
+            else:
+                V1.append(v_r[i][:, None] * v_r[j])
+    V1 = np.dstack(V1)
+    V_r = V1 @ strength
     residual = schrodinger_residual(
         psi=psi_ell,
         V=V_r,

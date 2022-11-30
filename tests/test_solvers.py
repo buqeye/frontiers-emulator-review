@@ -8,11 +8,13 @@ from scipy.special import spherical_jn
 from emulate import CompoundMesh
 from emulate import fourier_transform_partial_wave
 from emulate import gaussian_radial_fourier_transform
-from emulate.utils import (
+from emulate.separable import (
     yamaguchi_form_factor_momentum_space,
     yamaguchi_form_factor_position_space,
     yamaguchi_radial_wave_function,
     yamaguchi_scattering_amplitude,
+)
+from emulate.utils import (
     schrodinger_residual,
 )
 from emulate import (
