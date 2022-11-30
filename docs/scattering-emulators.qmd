@@ -518,7 +518,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 from emulate import fourier_transform_partial_wave, gaussian_radial_fourier_transform
-from emulate.utils import (
+from emulate import (
     yamaguchi_form_factor_momentum_space,
     yamaguchi_form_factor_position_space,
 )
@@ -909,6 +909,7 @@ from emulate.kvp import AlternateKohnEmulator
 from emulate.nvp import NewtonYamaguchiEmulator
 from emulate.kvp import KohnYamaguchiEmulator
 from emulate.svp import SchwingerYamaguchiEmulator
+from emulate.kvp import AlternateKohnYamaguchiEmulator
 setup_rc_params()
 sns.set_palette('pastel')
 ```
@@ -917,8 +918,10 @@ Next, define the parameters of the problem, which can be readily changed:
 ```{python}
 #| tags: [parameters]
 hbar2_over_2mu = 1
-nugget = 1e-6
+# nugget = 1e-6
+nugget = 1e-8
 n_train = 5
+# n_train = 2
 ell = 0
 ```
 
@@ -1017,6 +1020,14 @@ svp = SchwingerYamaguchiEmulator(
 svp.fit(p_train)
 ```
 
+```{python}
+alt_kohn_yama = AlternateKohnYamaguchiEmulator(
+    beta=betas, q_cm=q_cm, nugget=nugget, hbar2_over_2mu=hbar2_over_2mu,
+)
+alt_kohn_yama.fit(p_train)
+```
+
+
 
 
 Next, we train the `NewtonEmulator`:
@@ -1052,8 +1063,11 @@ newton_yama.fit(p_train)
 
 ```{python}
 kohn_yama = KohnYamaguchiEmulator(
-    beta=betas, q_cm=q_cm, nugget=nugget, hbar2_over_2mu=hbar2_over_2mu,
-    use_lagrange_multiplier=False,
+    beta=betas, q_cm=q_cm,
+    nugget=nugget,
+    # nugget=1e-5,
+    hbar2_over_2mu=hbar2_over_2mu,
+    use_lagrange_multiplier=True,
 )
 kohn_yama.fit(p_train)
 ```
@@ -1061,27 +1075,30 @@ kohn_yama.fit(p_train)
 
 Then, we train the `KohnLippmannSchwingerEmulator`:
 ```{python}
-V1_r_yama = []
-for i in range(n_form_factors):
-    for j in range(i, n_form_factors):
-        if i != j:
-            V1_r_yama.append(f_r[i][:, None] * f_r[j] + f_r[j][:, None] * f_r[i])
-        else:
-            V1_r_yama.append(f_r[i][:, None] * f_r[j])
-V1_r_yama = np.dstack(V1_r_yama)
-V0_r_yama = np.zeros(V1_r_yama.shape[:-1])
-ls_kohn = KohnLippmannSchwingerEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, NVP=newton_yama, is_local=False, ell=0)
-ls_kohn.fit(p_train)
-ls_coeff = ls_kohn.coefficients(p_valid)
+# V1_r_yama = []
+# for i in range(n_form_factors):
+#     for j in range(i, n_form_factors):
+#         if i != j:
+#             V1_r_yama.append(f_r[i][:, None] * f_r[j] + f_r[j][:, None] * f_r[i])
+#         else:
+#             V1_r_yama.append(f_r[i][:, None] * f_r[j])
+# V1_r_yama = np.dstack(V1_r_yama)
+# V0_r_yama = np.zeros(V1_r_yama.shape[:-1])
+# ls_kohn = KohnLippmannSchwingerEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, NVP=newton_yama, is_local=False, ell=0)
+# ls_kohn.fit(p_train)
+# ls_coeff = ls_kohn.coefficients(p_valid)
+
+
 # alt_kohn = AlternateKohnEmulator(V0=V0_r_yama, V1=V1_r_yama, r=r, dr=dr, q_cm=q_cm, NVP=newton_yama, is_local=False, ell=0)
 # alt_kohn.fit(p_train)
 # alt_coeff = alt_kohn.coefficients(p_valid)
 # print(alt_coeff)
 ```
 
+
 We these trained emulators in place, let's use the KVP and NVP to emulate the phase shifts associated with the Yamaguchi potenital @eq-yamaguchi:
 ```{python}
-#| label: fig-yamaguchi_phase_shifts
+#| label: fig-yamaguchi-phase-shifts
 #| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The training set is given by the five gray lines."
 p_valid = np.array([-30, 0, 20])
 # p_valid = np.array([20, 0, 0])
@@ -1090,14 +1107,16 @@ K_yama_nvp = newton_yama.predict(p_valid)
 # K_yama_kvp = ls_kohn.predict(p_valid)
 # K_yama_kvp = kohn_mom.predict(p_valid)
 K_yama_kvp = kohn_yama.predict(p_valid)
+K_yama_kvp2 = alt_kohn_yama.predict(p_valid)
 K_yama_svp = svp.predict(p_valid)
 # K_yama_exact = newton_yama.predict(p_valid, full_space=True)
 K_yama_exact = kohn_yama.predict(p_valid, full_space=True)
 # K_yama_exact = kohn_mom.predict(p_valid, full_space=True)
-# K_yama_train = kohn.K_train
-K_yama_train = kohn_yama.K_train
+K_yama_train = kohn.K_train
+# K_yama_train = kohn_yama.K_train
 phase_yama_nvp = newton_yama.phase_shifts(K_yama_nvp)
 phase_yama_kvp = newton_yama.phase_shifts(K_yama_kvp)
+phase_yama_kvp2 = newton_yama.phase_shifts(K_yama_kvp2)
 phase_yama_svp = newton_yama.phase_shifts(K_yama_svp)
 phase_yama_exact = newton_yama.phase_shifts(K_yama_exact)
 phase_yama_train = newton_yama.phase_shifts(K_yama_train)
@@ -1106,19 +1125,29 @@ ax = axes.ravel()[0]
 ax.plot(q_cm, phase_yama_train[0], **BASIS_KWARGS, label="Basis")
 ax.plot(q_cm, phase_yama_train.T, **BASIS_KWARGS)
 ax.plot(q_cm, phase_yama_exact, **FULL_KWARGS, label="Exact")
-ax.plot(q_cm, phase_yama_nvp, **PRED_KWARGS, label="NVP")
-ax.plot(q_cm, phase_yama_kvp, **PRED_KWARGS, label="KVP")
-ax.plot(q_cm, phase_yama_svp, **PRED_KWARGS, label="SVP")
+ax.plot(q_cm, phase_yama_kvp, **PRED_KWARGS, label="KVP ($\lambda$)")
+# ax.plot(q_cm, phase_yama_kvp2, **PRED_KWARGS, label="KVP (No $\lambda$)")
+# ax.plot(q_cm, phase_yama_svp, **PRED_KWARGS, label="SVP")
+# ax.plot(q_cm, phase_yama_nvp, **PRED_KWARGS, label="NVP")
 ax.set_ylabel("$\delta$ [deg]")
 ax.set_title("Yamaguchi Potential Phase Shifts")
 ax.legend(loc="upper right")
 ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
 # ax.set_ylim(-5, 5)
 ax = axes.ravel()[1]
-ax.semilogy(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
-ax.semilogy(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP")
-ax.semilogy(q_cm, np.abs(phase_yama_svp-phase_yama_exact), label="SVP")
-ax.legend()
+# ax.semilogy(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP ($\lambda$)")
+# ax.semilogy(q_cm, np.abs(phase_yama_kvp2-phase_yama_exact), label="KVP (No $\lambda$)")
+# ax.semilogy(q_cm, np.abs(phase_yama_svp-phase_yama_exact), label="SVP")
+# ax.semilogy(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
+
+ax.plot(q_cm, np.abs(phase_yama_kvp-phase_yama_exact), label="KVP ($\lambda$)")
+ax.plot(q_cm, np.abs(phase_yama_kvp2-phase_yama_exact), label="KVP (No $\lambda$)")
+ax.plot(q_cm, np.abs(phase_yama_svp-phase_yama_exact), label="SVP")
+ax.plot(q_cm, np.abs(phase_yama_nvp-phase_yama_exact), label="NVP")
+ax.set_yscale("log")
+# ax.set_ylim(1e-19, 1e-11)
+
+ax.legend(ncol=2)
 ax.set_ylabel("Absolute Residual [deg]")
 # ax.set_xlabel(r"$q_{\mathrm{cm}}$ [fm$^{-1}$]")
 ax.set_xlabel(r"$q$ [fm$^{-1}$]")
@@ -1126,12 +1155,8 @@ ax.set_xlabel(r"$q$ [fm$^{-1}$]")
 plt.show()
 ```
 
-```{python}
-svp.coefficients(p_valid).sum(axis=-1)
-```
 
-
-Figure @fig-yamaguchi_phase_shifts shows the phase shifts and the absolute residuals for the Yamaguchi potential @eq-yamaguchi.
+Figure @fig-yamaguchi-phase-shifts shows the phase shifts and the absolute residuals for the Yamaguchi potential @eq-yamaguchi.
 The top panel depicts the high-fidelity solution (solid black curve) and the emulator results (dots) with blue representing the NVP emulator and orange the KVP emulator.
 In gray we show the basis states used to train the emulator in the offline stage.
 The bottom panel shows the absolute residuals for both emulators with the same color scheme as the top panel.
@@ -1193,25 +1218,31 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
         ax.semilogy(r, u_resid[i], label=fr"$q = {q_i}$", ls=["-", "--", ":"][i])
     ax.set_xlabel("$r$")
     ax.set_ylabel(r"Abs.\ Residual")
-    ax.legend()
+    ax.legend(loc="lower right")
     # ax.set_xlim(0, 10)
     return fig, axes
 ```
 
 Now, we apply `plot_wave_functions()` to plot the emulated wave functions and their residuals relative to the high-fidelity calculations:
 ```{python}
-#| label: fig-yamaguchi_wave_functions
-#| fig-cap: "Wave functions (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi. The top panel legend description is similar to Figure @fig-yamaguchi_phase_shifts, but for three different values of $q$ in units of fm$^{-1}$. The bottom panel shows the relative residuals of the three values previously mentioned."
-psi_train_yama = kohn.psi_train
-psi_exact_yama = kohn.predict_wave_function(p_valid)
-psi_valid_yama = kohn.emulate_wave_function(p_valid)
-r_mask = r <= 10
+#| label: fig-yamaguchi-wave-functions
+#| fig-cap: "Wave functions (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi. The top panel legend description is similar to Figure @fig-yamaguchi-phase-shifts, but for three different values of $q$ in units of fm$^{-1}$. The bottom panel shows the relative residuals of the three values previously mentioned."
+# psi_train_yama = kohn_yama.psi_train
+
+rr = np.linspace(1e-2, 10, 201)
+psi_train_yama = np.array([kohn_yama.predict_wave_function(p, r=rr) for p in p_train]).transpose(1, 0, 2)
+psi_exact_yama = kohn_yama.predict_wave_function(p_valid, r=rr)
+psi_valid_yama = kohn_yama.emulate_wave_function(p_valid, r=rr)
+# psi_train_yama = np.array([alt_kohn_yama.predict_wave_function(p, r=rr) for p in p_train]).transpose(1, 0, 2)
+# psi_exact_yama = alt_kohn_yama.predict_wave_function(p_valid, r=rr)
+# psi_valid_yama = alt_kohn_yama.emulate_wave_function(p_valid, r=rr)
+# r_mask = r <= 10
 q_mask = np.isin(q_cm, [0.5, 1,  2])
 fig, axes = plot_wave_functions(
-    r=r[r_mask],
-    psi_emulator=psi_valid_yama[q_mask][..., r_mask],
-    psi_exact=psi_exact_yama[q_mask][..., r_mask],
-    psi_train=psi_train_yama[q_mask][..., r_mask],
+    r=rr,
+    psi_emulator=psi_valid_yama[q_mask],
+    psi_exact=psi_exact_yama[q_mask],
+    psi_train=psi_train_yama[q_mask],
     q_cm=q_cm[q_mask]
 )
 # axes[0].set_title("Yamaguchi Radial Wave Functions")
@@ -1219,7 +1250,7 @@ fig, axes = plot_wave_functions(
 plt.show()
 ```
 
-Figure @fig-yamaguchi_wave_functions shows the high-fidelity (solid black line), emulated (dots), and basis (solid gray line) wave functions for three values of $q$ with their absolute residuals.
+Figure @fig-yamaguchi-wave-functions shows the high-fidelity (solid black line), emulated (dots), and basis (solid gray line) wave functions for three values of $q$ with their absolute residuals.
 The emulator reproduces the high-fidelity solution at all three values of $q$, with $q = 2.0 \, \text{fm}^{-1}$ having the smallest residual.
 
 In addition, we make the same comparision between the NVP and KVP emulators for a different potential. We choose the ${}^1S_0$ Minnesota potential:
@@ -1227,10 +1258,10 @@ In addition, we make the same comparision between the NVP and KVP emulators for 
 from emulate import hbar_c, MN
 from emulate import t_cm_to_q_cm
 from emulate.utils import (
-    yamaguchi_form_factor_momentum_space,
-    yamaguchi_form_factor_position_space,
-    yamaguchi_radial_wave_function,
-    yamaguchi_scattering_amplitude,
+    # yamaguchi_form_factor_momentum_space,
+    # yamaguchi_form_factor_position_space,
+    # yamaguchi_radial_wave_function,
+    # yamaguchi_scattering_amplitude,
     schrodinger_residual,
     minnesota_potential_coordinate,
     minnesota_potential_momentum_1S0,
@@ -1305,8 +1336,8 @@ ls_kohn_1S0.fit(p_train)
 With the emulators trained, we can compare their performance in emulating radial wave functions:
 
 ```{python}
-#| label: fig-minnesota_wave_functions
-#| fig-cap: "Similar to @fig-yamaguchi_wave_functions but for the Minnesota potential."
+#| label: fig-minnesota-wave-functions
+#| fig-cap: "Similar to @fig-yamaguchi-wave-functions but for the Minnesota potential."
 psi_train_minn_1S0 = ls_kohn_1S0.psi_train
 psi_exact_minn_1S0 = ls_kohn_1S0.predict_wave_function(p_valid)
 psi_valid_minn_1S0 = ls_kohn_1S0.emulate_wave_function(p_valid)
@@ -1325,7 +1356,7 @@ plt.show()
 
 Next, we emulate the phase shifts associated with Minnesota potential:
 ```{python}
-#| label: fig-minnesota_phase_shift
+#| label: fig-minnesota-phase-shift
 #| fig-cap: "Phase shifts for the Minnesota potential. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The training set is depicted by the gray lines."
 K_1S0_kvp = ls_kohn_1S0.predict(p_valid, full_space=False)
 K_1S0_nvp = newton_1S0.predict(p_valid)

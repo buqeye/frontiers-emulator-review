@@ -331,7 +331,7 @@ H1 = np.stack([
     for H1_r_i in H1_r.T
 ], axis=-1)
 
-R = convert_from_r_to_ho_basis(r, n_max=n_max, ell=ell, r=r, dr=dr, b=b)
+R2 = convert_from_r_to_ho_basis(r**2, n_max=n_max, ell=ell, r=r, dr=dr, b=b)
 ```
 
 ```{python}
@@ -399,7 +399,7 @@ fig, axes = plt.subplots(
 V0 = oscillator_potential(r_grid, mass=mass, omega=1)
 for i, p_i in enumerate(p_train):
     ax = axes.ravel()[i]
-    psi_line, = ax.plot(r_grid, wf_train[:, i]+emulator.E_train[i], label=r'$\psi(r)$')
+    psi_line, = ax.plot(r_grid, wf_train[:, i]+emulator.E_train[i], label=r'$r\psi(r)$')
     ax.axhline(0, 0, 1, c='lightgrey', lw=0.8, zorder=0)
     V = V0 + H1_r_grid @ p_i
     pot_line, = ax.plot(r_grid, V, c='k', lw=0.8, label=r"$V(\boldsymbol{\theta})$")
@@ -479,7 +479,7 @@ for i in range(n_example):
     label_full = None
 # ax.set_xlabel(r"$r$")
 # ax.set_ylabel(r"$\psi(r)$ (RBM)")
-ax.set_ylabel(r"$\psi(r)$")
+ax.set_ylabel(r"$r\psi(r)$")
 ax.set_yticks([])
 ax.set_xticks([])
 ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
@@ -501,7 +501,7 @@ for i in range(n_example):
     ax.plot(r_grid, osc_wfs @ ncsm.emulate_wave_function(p_valid[i]), label=label_pred, **PRED_KWARGS)
 ax.set_xlabel(r"$r$")
 # ax.set_ylabel(r"$\psi(r)$ (NCSM)")
-ax.set_ylabel(r"$\psi(r)$")
+ax.set_ylabel(r"$r\psi(r)$")
 ax.set_yticks([])
 ax.set_xticks([0, 1, 2, 3])
 ax.axhline(0, 0, 1, c='k', lw=0.8, zorder=0)
@@ -652,17 +652,17 @@ plt.show()
 
 
 ```{python}
-op = BoundStateOperator(name='R', ham=emulator, op0=R)
-op_ncsm = BoundStateOperator(name='R', ham=ncsm, op0=R)
+op = BoundStateOperator(name=r'$R^2$', ham=emulator, op0=R2)
+op_ncsm = BoundStateOperator(name=r'$R^2$ (HO)', ham=ncsm, op0=R2)
 ```
 
 
 
 ```{python}
-R_full = np.stack([op.predict(p_i, use_emulator=False) for p_i in p_valid])
-R_pred = np.stack([op.predict(p_i, use_emulator=True) for p_i in p_valid])
+R_full = np.stack([np.sqrt(op.predict(p_i, use_emulator=False)) for p_i in p_valid])
+R_pred = np.stack([np.sqrt(op.predict(p_i, use_emulator=True)) for p_i in p_valid])
 
-R_pred_ncsm = np.stack([op_ncsm.predict(p_i, use_emulator=True) for p_i in p_valid])
+R_pred_ncsm = np.stack([np.sqrt(op_ncsm.predict(p_i, use_emulator=True)) for p_i in p_valid])
 ```
 
 
