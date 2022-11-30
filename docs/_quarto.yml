@@ -30,7 +30,7 @@ book:
     - name: Xilin Zhang
       affiliation: Facility for Rare Isotope Beams
       orcid: 0000-0001-9278-5359
-  date: "8/14/2022"
+  date: "11/08/2022"
   cover-image: buqeye_logo_web.png
   favicon: buqeye_logo_web.png
   repo-url: "https://github.com/buqeye/frontiers-emulator-review"
@@ -59,7 +59,7 @@ book:
   downloads: [pdf, epub]
 
 website:
-  title: "BUQEYE Guide to Emulators in Nuclear Physics"
+  title: "BUQEYE Guide to Projection-based Emulators in Nuclear Physics"
   sidebar:
     style: "docked"
     search: true
@@ -70,10 +70,8 @@ website:
       - eigen-emulators.qmd
 
 bibliography:
-  - references.bib
-  - emulator_refs.bib
   - bayesian_refs.bib
-  - test.bib
+
 csl: phys_rev_c.csl
 
 format:
@@ -111,6 +109,7 @@ format:
       - mymacros.tex
       - text: |
           \usepackage{xtab}
+          \usepackage{isotope}
           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
           % Redefine longtable because it doesn't work in multicolumn
           %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
