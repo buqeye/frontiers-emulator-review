@@ -71,7 +71,7 @@ $$
  \end{align}
 %\end{subequations}
 $$ {#eq-trial_general}
-where the column-vector $\coeffs$ contains the to-be-determined coefficients and the row-vector $X$ the (in principle) arbitrary basis states.^[Note that the term \emph{basis states} does not necessarily mean that the states are linearly independent in this context.]
+where the column-vector $\coeffs$ contains the to-be-determined coefficients and the row-vector $X$ the (in principle) arbitrary basis states.
 Here, we use \emph{snapshots} of high-fidelity solutions of the Schrödinger Equation @eq-generic_eigenvalue_problem at a set of given parameter values; _i.e._, $\{\ket{\psi_i} \equiv \ket{\psi(\params_i)}\}_{i=1}^{\nbasis}$ [@Benner2017modelRedApprox;@Benner20201; @Buchan2013EigenvaluePOD;@Quarteroni:218966].
 No assumption has been made as to how to obtain the high-fidelity solutions.
 

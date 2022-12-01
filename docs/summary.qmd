@@ -36,7 +36,7 @@ All of these avenues can benefit from the rich MOR literature and software tools
 
 * Many technical aspects should be further explored, such as greedy (or active-learning) @Sarkar:2021fpz and SVD-based algorithms for choosing the training points more effectively, hyperreduction methods for non-affine problems, and improved convergence analyses.
 
-* Scattering emulators could play pivotal roles in connecting reaction models and experiments at new-generation rare-isotope facilities (_e.g._, the Facility for Rare-Isotope Beams).
+* Scattering emulators could play pivotal roles in connecting reaction models and experiments at new-generation rare-isotope facilities (_e.g._, the Facility for Rare Isotope Beams).
     In this regard, further studies on incorporating long-range Coulomb interactions and optical potentials beyond two-body systems will be valuable.
     Furthermore, emulators for time-dependent density functional theories could see extensive applications in interpreting fission measurements.
     At facilities such as Jefferson Lab and the future Electron-Ion Collider, explorations of nuclear dynamics at much higher energy scales should also benefit from emulators.

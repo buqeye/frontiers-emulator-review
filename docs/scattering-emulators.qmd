@@ -355,7 +355,7 @@ $$
 where
 $$
 \begin{equation}
-    \Lambda_{ij}^{-1} = \braket{\psi_i | V | \psi_j}.
+    (\Lambda_{ij}^{-1})_{ij} = \braket{\psi_i | V | \psi_j}.
 \end{equation}
 $$
 It is known that the SVP yields a $K$ matrix that is equivalent to that found via a finite-rank approximation to $V$ [@Takatsuka1981SchwingerKohnRelationship;@Takatsuka1981Scattering], which shows that the Galerkin projection described in this Section is identical to the SVP.
@@ -739,10 +739,12 @@ $$
 
 Variational principles may not always provide a (unique) stationary approximation, causing the appearance of spurious singularities known as Kohn (or Schwartz) anomalies [@Drischler:2021qoy;@Lucchese:1989zz;@nesbet1980variational], which can render applications of VPs ineffective; especially for sampling of a model's parameter space.
 The appearance of these anomalies depend on the parameters $\params$ used to train the emulator in the offline stage, the scattering energy, and the evaluation set used in the online stage.
-However, Reference [@Drischler:2021qoy] demonstrated that a KVP-based emulator that simultaneously emulates an array of KVPs with different boundary conditions can be used to systematically detect and remove these anomalies.
-The anomalies are detected by assessing the consistency of the emulated results and, when detected, mitigated by adapting the emulator's training points to shift the anomaly's position in the parameter space.
-The basic idea is general and can be applied to other emulators, including the NVP-based emulator discussed in Section @sec-newton, as long as multiple scattering boundary conditions can be emulated independently and efficiently.
-
+However, Reference @Drischler:2021qoy demonstrated that a KVP-based emulator that simultaneously emulates an array of KVPs with different boundary conditions can be used to systematically detect and remove these anomalies.
+The anomalies can be detected by assessing the (relative) consistency of the different emulated results for, _e.g._, the scattering $S$ matrix.
+The results that do not pass the consistency check are discarded and the remaining ones averaged to obtain an anomaly-free estimate of the $S$ matrix (or any other matrix).
+If all possible consistency checks fail, one can change the basis size of the trial wave function iteratively, which typically shifts the locations of the Kohn anomalies in the parameter space in each iteration.
+The basic idea for removing Kohn anomalies is general and can be applied to other emulators, including the NVP-based emulator discussed in Section @sec-newton, as long as multiple scattering boundary conditions can be emulated independently and efficiently.
+Alternatively, one might also consider comparing the consistency of emulated results obtained from different VPs such as the ones summarized in Table @tab-scattering-vps-galerkin.
 
 ### Generalization to coupled systems {#sec-kohn-coupled}
 
