@@ -18,8 +18,8 @@ $$
 
 
 # Model Reduction {#sec-model-reduction}
-$\identity$
-In this Section, we provide a more general discussion of variational principles and the Galerkin method as the foundations for constructing highly efficient emulators for nuclear physics.
+
+In this Section, we provide a more general discussion of variational principles and the Galerkin method as the foundations for constructing highly efficient emulators for nuclear physics (see also Reference @Melendez:2022kid).
 The general methods discussed here will be used as a springboard to develop emulators for the specific case of scattering systems in Section @sec-scattering-emulators.
 
 We consider (time-independent) differential equations that depend on the parameter vector $\params$ and
@@ -90,6 +90,8 @@ which can be solved for $\coeffsopt$ using standard linear algebra methods.
 Solving for $\coeffsopt$ occurs only in a space of size $\nbasis$, the number of basis elements $\{\trialfunc_i\}_{i=1}^{\nbasis}$, rather than in the much larger space of $\trialfunc$ itself.
 Therefore, as long as $\{\trialfunc_i\}_{i=1}^{\nbasis}$ approximately spans the space in which $\trialfunc$ lives, the trial function constructed by Equations @eq-trial_general_subeq and @eq-coefficient_solve_quadratic will be both a fast & accurate emulator of $\trialfunc$.
 
+Similar to the discussion in Section~\ref{sec:eigen-emulators_variational}, the matrix $A_s$ in Equation @eq-coefficient_solve_quadratic may be ill-conditioned and require regularization.
+A nugget $\nu \ll 1$ can be added to the diagonal elements of $A_s$ to help stabilize the solution for $\coeffsopt$ [@Neumaier98solvingill-conditioned;@engl1996regularization].
 
 ## Galerkin Emulators
 

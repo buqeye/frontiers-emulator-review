@@ -71,7 +71,7 @@ $$
  \end{align}
 %\end{subequations}
 $$ {#eq-trial_general}
-where the column-vector $\coeffs$ contains the to-be-determined coefficients and the row-vector $X$ the (in principle) arbitrary basis states.
+where the column-vector $\coeffs$ contains the to-be-determined coefficients and the row-vector^[In a representation of $H$, the $\psi_i$ corresponding to $\ket{\psi_i}$ are the $\nbasis$ columns of the matrix $X$ in that representation.] $X$ the (in principle) arbitrary basis states.
 Here, we use \emph{snapshots} of high-fidelity solutions of the Schrödinger Equation @eq-generic_eigenvalue_problem at a set of given parameter values; _i.e._, $\{\ket{\psi_i} \equiv \ket{\psi(\params_i)}\}_{i=1}^{\nbasis}$ [@Benner2017modelRedApprox;@Benner20201; @Buchan2013EigenvaluePOD;@Quarteroni:218966].
 No assumption has been made as to how to obtain the high-fidelity solutions.
 
@@ -101,7 +101,7 @@ $$
 %\end{subequations}
 $$ {#eq-ritz_condition}
 where $\subspace{H}(\params) \equiv X^\dagger H(\params) X$ is the subspace-projected Hamiltonian and $\subspace{N} \equiv X^\dagger X$ the norm matrix in the snapshot basis.
-Note that $\subspace{H}(\params)$ (and likewise $\subspace{N}$) is _not_ an operator, as opposed to $H(\params)$ in Equation @eq-generic_eigenvalue_problem, but rather an $\nbasis \times \nbasis$ matrix
+As opposed to $H(\params)$ in Equation~\eqref{eq:generic_eigenvalue_problem}, $\subspace{H}(\params)$ (and likewise $\subspace{N}$) is a $\nbasis \times \nbasis$ matrix
 $$
 \begin{equation}
     %\renewcommand*{\arraystretch}{1.1}
@@ -114,10 +114,18 @@ $$
 \end{equation}
 $$
 
-By solving the generalized eigenvalue problem @eq-ritz_condition,^[A trimmed sampling algorithm that can substantially reduce the effects of noise in solving generalized eigenvalue problems was recently introduced in Reference @Hicks:2022ovs.]
+In practice, the generalized eigenvalue problem @eq-ritz_condition} may experience numerical instabilities due to small singular values in $\subspace{N}$.
+(The instabilities also appear in reduced-order modeling of differential equations, see Section @sec-model-reduction.)
+One way to ameliorate these instabilities is to orthonormalize the snapshots in $X$, hence yielding $\subspace{N} = \identity$.
+This approach could also permit some efficiency gains, by excluding the least important vectors as measured by their singular values.
+Alternatively, Reference @Hicks:2022ovs recently introduced a trimmed sampling algorithm that can substantially reduce the effects of noise in solving generalized eigenvalue problems.
+Finally, a well-known approach to regularize both generalized eigenvalue problems and matrix inversion is through the use of a nugget [@Neumaier98solvingill-conditioned;@engl1996regularization].
+Here, a regularization parameter $\nu\ll 1$ (called a nugget) is added to the diagonal of the ill-conditioned matrix one wishes to invert (here, $\subspace{N}$), thus shifting its singular values.
+
+By solving the generalized eigenvalue problem @eq-ritz_condition,
 one obtains $\nbasis$ pairs $\{\subspace{E}(\params),\coeffsopt(\params)\}$ consisting of a Lagrange multiplier (_i.e._, an eigenvalue) and its corresponding coefficient vector.
 Let us index the eigenvalues of the emulator equation @eq-ritz_condition and Schrödinger Equation @eq-generic_eigenvalue_problem in ascending order; that is, $\subspace{E}_n \leqslant \subspace{E}_{n+1}$ and ${E}_n \leqslant {E}_{n+1}$, respectively, with $n=1$ indicating the lowest eigenvalue.
-If the snapshot basis $X$ in the trial wave function @eq-trial_general contains $\nbasis$ linearly independent states,^[If the snapshots in $X$ are linearly dependent, we can construct a $X'$ consistent of fewer but linearly independent states by orthogonalizing the snapshots up front.] then the Min--Max Theorem @Suzuki:1998bn asserts that each Lagrange multiplier,
+If the snapshot basis $X$ in the trial wave function @eq-trial_general contains $\nbasis$ linearly independent states, then the Min--Max Theorem @Suzuki:1998bn asserts that each Lagrange multiplier,
 $$
 \begin{equation} %\label{eq-variational_bounds}
     \subspace{E}_n(\params) \geqslant E_n(\params) \quad \text{for $1 \leqslant n \leqslant \nbasis$},
@@ -169,7 +177,7 @@ $$
     \braket{\testfunc | H(\params)  - \subspace{E}(\params)  |\trial\psi} &= 0, ~~\forall \ket{\testfunc} \in \mathcal{Z}. %\label{eq-eigenvalue_galerkin}
 \end{align}
 $$ {#eq-eigenvalue_galerkin}
-But replacing $\ket{\psi} \to \ket{\trial\psi}$ also implies that the true eigenvalue $E$ is in general not exactly reproduced unless the linear span of $\mathcal{X}$ contains $\ket{\psi(\params)}$.
+But replacing $\ket{\psi} \to \ket{\trial\psi}$ also implies that the true eigenvalue $E$ is in general not exactly reproduced unless $\mathcal{X}$ contains $\ket{\psi(\params)}$.
 Hence, we also had to apply the approximation $\subspace{E}\approx E$ in Equations @eq-eigenvalue_galerkin_geom and @eq-eigenvalue_galerkin.
 
 In the Galerkin method, which is also known as the "method of weighted residuals," the test and trial function bases are chosen to be equivalent;
@@ -444,6 +452,7 @@ All of this, and more, is made simple by the **EigenEmulator** Python class prov
 Once the reduced system has been constructed and the affine structure of the Hamiltonian exploited to store the projected matrices during the offline stage, we can begin rapid emulation during the online stage.
 To help provide a baseline to a common approach in nuclear physics, we provide an emulator constructed with the first $\nbasis=6$ HO wave functions as the trial basis $X$ in Equation @eq-ritz_condition.
 We label this approach the HO emulator and the snapshot-based approach the reduced-basis method (RBM) emulator.
+See Reference~\cite{Melendez:2022kid} for a guide to the extensive literature on RBMs.
 One can emulate quantities with this HO approach via our **OscillatorEmulator** class @companionwebsite.
 
 ```{python}
@@ -575,7 +584,7 @@ plt.show()
 
 ```{python}
 #| label: fig-wave-function-residuals
-#| fig-cap: "Absolute residuals of the emulated wave functions based on the RBM and HO emulator as a function of the radius. The emulator results are compared to the exact solutions. See the main text for details."
+#| fig-cap: "Absolute residuals of the emulated wave functions (in fm$^{-1/2}$) based on the RBM and HO emulator as a function of the radius. The emulator results are compared to the exact solutions. See the main text for details."
 #| echo: false
 fig, ax = plt.subplots(figsize=(3.3, 2.5))
 for i in range(n_example):
@@ -640,7 +649,7 @@ E_pred_gp, E_std_gp = gp.predict(p_valid, return_std=True)
 
 ```{python}
 #| label: fig-energy-residuals
-#| fig-cap: "Absolute residuals in the energy at the 50 validation points for the RBM, HO, and GP emulators. The validation points are chosen randomly from a uniform distribution within the same range as the training points. See the main text for details."
+#| fig-cap: "Absolute residuals in the energy (in MeV) at the 50 validation points for the RBM, HO, and GP emulators. The validation points are chosen randomly from a uniform distribution within the same range as the training points. See the main text for details."
 #| echo: false
 fig, ax = plt.subplots(figsize=(3.3, 2))
 ax.semilogy(np.arange(len(E_full)), np.abs(E_pred_gp-E_full), label='GP', ls=':')
@@ -678,7 +687,7 @@ R_pred_gp, R_std_gp = gp_op.predict(p_valid, return_std=True)
 
 ```{python}
 #| label: fig-radius-residuals
-#| fig-cap: "Similar to Figure @fig-energy-residuals but for the root-mean-squared radius $\\sqrt{\\langle{R^2}\\rangle}$."
+#| fig-cap: "Similar to Figure @fig-energy-residuals but for the root-mean-squared radius $\\sqrt{\\langle{R^2}\\rangle}$ and in units of fm.."
 #| echo: false
 fig, ax = plt.subplots(figsize=(3.4, 2))
 ax.semilogy(np.arange(len(R_full)), np.abs(R_pred_gp-R_full), label='GP', ls=':')

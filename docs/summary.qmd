@@ -14,7 +14,6 @@ These emulators enable repeated bound state and scattering calculations, _e.g._,
 A crucial element in this emulator workflow, as summarized in Figure @fig-illustration_fom_rom, is an efficient offline-online decomposition in which the heavy computational lifting is performed only once before the emulator is invoked.
 Chiral Hamiltonians allow for such efficient decompositions due to their affine parameter dependence on the low-energy couplings.
 Furthermore, we discussed the high efficacy of projection-based emulators in extrapolating results far from the support of the snapshot data, as opposed to the GPs.
-Both emulator types have a wide range of literature and software libraries available to be readily used in applications to nuclear physics.
 
 While MOR has already reached maturity in other fields, it is still in its infancy in nuclear physics---although rapidly growing---and there remains much to explore and exploit [@Melendez:2022kid; @Bonilla:2022rph; @Anderson:2022jhq; @Giuliani:2022yna].
 In the following, we highlight some of the many interesting research avenues for emulator applications in nuclear physics.
@@ -47,7 +46,7 @@ All of these avenues can benefit from the rich MOR literature and software tools
     Extrapolation capabilities of emulators should be investigated further.
 
 * While projection-based emulators have had successes (_e.g._, see References [@Konig:2019adq; @Ekstrom:2019lss; @Wesolowski:2021cni]), it is also important to understand their limitations and investigate potential improvements.
-    The synergy between projection-based and machine learning methods is a new direction being undertaken in the field of MOR for this purpose (_e.g._, see Reference @FRESCA2022114181).
+    The synergy between projection-based and machine learning method @Boehnlein:2021eym is a new direction being undertaken in the field of MOR for this purpose (_e.g._, see Reference @FRESCA2022114181).
     Nuclear physics problems, with and without time dependence, will provide ample opportunities for such explorations.
 
 * Emulators run fast, often with a small memory footprint, and can be easily shared.

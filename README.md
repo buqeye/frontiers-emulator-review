@@ -22,3 +22,21 @@ The following flags are helpful:
 * `--no-watch-inputs` if you don't want the docs updating after every save, which is helpful if it takes a long time to build
 * `--port` Choose a default port (e.g., `1234`) so that your browser link will not change. This is not necessary because a default is set in the `_quarto.yml` file.
 * Rather than specify `docs` you can instead use a file name to only render that file.
+
+## Cite this work
+
+Please cite this repository as:
+
+```bibtex
+@article{Drischler:2022xyz,
+	author = {Drischler, C. and Furnstahl, R. J. and Garcia, A. J. and Melendez, J. A. and Zhang, Xilin},
+	title = "BUQEYE Guide for Projection-based Emulators in nuclear physics",
+	volume = "",
+	number = "",
+	pages = "",
+	year = "",
+	doi = "",
+	URL = "",
+	journal = "Frontiers in Physics"
+}
+```
