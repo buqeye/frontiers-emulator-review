@@ -1,7 +1,8 @@
 
-# BUQEYE Guide to Emulators in Nuclear Physics (Frontiers Review)
+# BUQEYE Guide to Projection-Based Emulators in Nuclear Physics (Frontiers in Physics Article)
 
-Supplemental Material for "BUQEYE Guide to Emulators in Nuclear Physics"
+All examples discussed in our Frontiers in Physics Article "BUQEYE Guide to Projection-Based Emulators in Nuclear Physics" and more are available here as interactive, open-source Python code so that practitioners can readily adapt projection-based emulators for their own work.
+
 
 ## Documentation
 
