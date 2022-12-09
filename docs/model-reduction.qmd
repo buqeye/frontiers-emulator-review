@@ -51,7 +51,7 @@ $$
 \end{equation}
 $$ {#eq-generic_functional}
 where $F$ and $G$ are differential operators.
-Many differential equations @eq-generic_differential_and_boundary can be obtained as stationary solutions of a corresponding functional @eq-generic_functional; _i.e._, the solution $\trialfunc_\star$ that leads to $\delta\action[\trialfunc_\star] = 0$.
+Many differential equations @eq-generic_differential_and_boundary can be solved by finding stationary solutions of a corresponding functional @eq-generic_functional; _i.e._, the solution $\trialfunc_\star$ that leads to $\delta\action[\trialfunc_\star] = 0$.
 
 However, VPs can also lead straightforwardly to a reduced-order model.
 This follows from the following trial ansatz

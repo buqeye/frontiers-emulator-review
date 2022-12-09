@@ -817,7 +817,7 @@ $$
 \end{equation}
 $$ {#eq-three-body-elastic-scattering-KVP-functional}
 Here, $S$ is the $S$-matrix associated with the trial three-body wave function $|\trial\psi\rangle$, $H$ and $E$ the full Hamiltonian and energy, respectively.
-The trial wave function has the following asymptotic behavior:
+The trial wave function has the following asymptotic behavior~\cite{Zhang:2021jmi}:
 $$
 \begin{equation} %\label{#eq-WFbelowbreakupAsym}
 \langle {R}_1, {r}_1|\trial\psi\rangle
