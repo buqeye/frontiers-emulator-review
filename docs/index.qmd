@@ -26,5 +26,5 @@ number OAC-2004601 (BAND Collaboration @BAND_Framework), and the NUCLEI SciDAC C
 
 # Acknowledgments {.unnumbered}
 We thank the Editors Maria Piarulli, Evgeny Epelbaum, and Christian Forssén for the kind invitation to contribute to this Frontiers Research Topic @ResearchTopicUQ.
-We are also grateful to our BUQEYE @BUQEYEweb and BAND @BAND_Framework collaboration colleagues for sharing their invaluable insights with us, and especially to Daniel Phillips for fruitful discussions in the BUQEYE state.
+We are also grateful to our BUQEYE @BUQEYEweb and BAND @BAND_Framework collaboration colleagues for sharing their invaluable insights with us, and especially to Pablo Giuliani and Daniel Phillips for fruitful discussions.
 C.D. thanks Petar Mlinarić for sharing his deep insights into the software library **pyMOR** @milk2016pyMOR for building MOR applications with the Python.

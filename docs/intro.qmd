@@ -12,7 +12,7 @@ making practical otherwise impractical calculations.
 But the nuclear physics community has barely scratched the surface of the types of emulators that could be crafted or explored their full range of applications.
 
 A fertile area for new emulators is uncertainty quantification (UQ) [@Zhang:2015ajn; @Neufcourt:2019qvd; @King:2019sax; @Ekstrom:2019lss; @Catacora-Rios:2020xgx; @Wesolowski:2021cni; @Svensson:2021lzs; @Odell:2021tqd; @Djarv:2021pjc; @Alnamlah:2022eae] in nuclear physics, which is the general theme of this Frontiers Research Topic @ResearchTopicUQ.
-Quantifying theoretical uncertainties rigorously is crucial for comparing theory predictions with experimental and/or observational constraints and performing model comparison and/or mixing.
+Quantifying theoretical uncertainties rigorously is crucial for comparing theory predictions with experimental and/or observational constraints and performing model comparison and/or mixing~\cite{Phillips:2020dmw}.
 However, UQ has only recently drawn much attention as nuclear theory has entered the precision era.
 Bayesian parameter estimation for nuclear effective field theory (EFT) and optical models, UQ for nuclear structure pushing toward larger masses and for reactions across the chart of nuclides, experimental design [@Melendez:2020ikd; @Phillips:2020dmw; @Farr:2021fyc] for the next generation of precision experiments probing the nuclear dripline,
 and many other applications
@@ -22,7 +22,7 @@ Key to the wider adoption of these tools is the evangelization of their potentia
 This article is aimed at  both goals.
 
 To do so, the BUQEYE collaboration (Bayesian Uncertainty Quantification: Errors in Your EFT) @BUQEYEweb has created a rather unconventional document comprised of the article you are reading now along with a companion website @companionwebsite containing interactive supplemental material and source code that generates all the results shown, and much more.
-Interested individuals can dynamically generate different versions of the document based on tunable parameters.
+Interested individuals can dynamically generate different versions of this document based on tunable parameters.
 We hope that this format encourages readers to experiment and build upon the examples presented here, thereby facilitating new applications.
 
 Various types of emulators have already been applied with success within nuclear physics.

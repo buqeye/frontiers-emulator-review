@@ -25,7 +25,7 @@ $$
 $$ {#eq-generic_eigenvalue_problem}
 subject to the normalization $\braket{\psi(\params)|\psi(\params)} = 1$, in the parameter space $\params$.
 The components of the vector $\params$ may be model parameters, such as the low-energy couplings of a nuclear EFT, or other parameters describing the system of interest [@Zhang:2021jmi;@Yapa:2022nnv].
-We consider here cases in which Equation @eq-generic_eigenvalue_problem can be solved with high fidelity, but doing so requires a significant amount of computing time, _e.g._, repeated calculations in the parameter space $\params$ for Monte Carlo sampling or optimization tasks are computationally demanding to prohibitively slow.
+We consider here cases in which Equation @eq-generic_eigenvalue_problem can be solved with high fidelity, but doing so requires a significant amount of computing time, _e.g._, repeated calculations in the parameter space $\params$ for Monte Carlo sampling or optimization tasks are computationally demanding or even prohibitively slow.
 In the following, we will discuss how the Ritz variational principle and the Galerkin method can be used to construct rapid and reliable^[A _reliable_ emulator may not necessarily be required to be highly accurate, _e.g._, if the other uncertainties of the theoretical calculation dominate the overall uncertainty budget.] emulators that facilitate these calculations.
 
 
@@ -91,7 +91,7 @@ In nuclear physics, snapshot-based emulators already have accurately approximate
 
 Given the trial wave function @eq-trial_general, we determine the coefficients $\coeffs_\star$ that render $\mathcal{E}[\trial \psi = X\coeffs]$ stationary under variations $\ket{\delta \trial \psi} = X\ket{\delta \coeffs}$ of the trial wave function, as opposed to arbitrary variations.
 Solving for the optimal $\coeffs_\star$ occurs then in the low-dimensional space spanned by the basis elements in $X$ (_i.e._, the red arrows in @fig-illustration_rbm) rather than in the high-dimensional space in which $\ket{\psi}$ resides.
-From the stationarity condition @eq-stationarity_condition, we obtain the reduced-order model
+From the stationarity condition @eq-stationarity_condition, we obtain the reduced-order model @Melendez:2020xcs
 $$
 %\begin{subequations} %\label{eq-ritz_condition}
     \begin{align}
@@ -101,7 +101,7 @@ $$
 %\end{subequations}
 $$ {#eq-ritz_condition}
 where $\subspace{H}(\params) \equiv X^\dagger H(\params) X$ is the subspace-projected Hamiltonian and $\subspace{N} \equiv X^\dagger X$ the norm matrix in the snapshot basis.
-As opposed to $H(\params)$ in Equation~\eqref{eq:generic_eigenvalue_problem}, $\subspace{H}(\params)$ (and likewise $\subspace{N}$) is a $\nbasis \times \nbasis$ matrix
+As opposed to $H(\params)$ in Equation~\eqref{eq:generic_eigenvalue_problem}, $\subspace{H}(\params)$ (and likewise $\subspace{N}$) is a $\nbasis \times \nbasis$ Hermitian matrix
 $$
 \begin{equation}
     %\renewcommand*{\arraystretch}{1.1}
@@ -165,7 +165,7 @@ The proof of this statement can be obtained via a contrapositive: if the Equatio
 
 The weak form of the high-fidelity system is the starting point for deriving a reduced-order model.
 Although Equation @eq-eigen_value_weak_full still operates in the large space in which $\ket{\psi}$ resides (cf. @fig-illustration_rbm), we can reduce its dimension by replacing $\ket{\psi} \to \ket{\trial\psi}$, where $\ket{\trial\psi}$ is defined in Equation @eq-trial_general.
-With the degrees of freedom for $\ket{\psi}$ reduced, we enforce a less strict orthogonality condition: we select $\nbasis$ test functions $\testfunc_i$ and assert that the error due to the trial wave function (cf. @fig-illustration_rbm) should be orthogonal to the subspace $\mathcal{Z}$ spanned by these test functions $Z = [\ket{\testfunc_1}, \dots, \ket{\testfunc_{\nbasis}}]$:
+With the degrees of freedom for $\ket{\psi}$ reduced, we enforce a less strict orthogonality condition: we select $\nbasis$ test functions $\testfunc_i$ and assert that the residual due to the trial wave function (cf. @fig-illustration_rbm) should be orthogonal to the subspace $\mathcal{Z}$ spanned by these test functions $Z = [\ket{\testfunc_1}, \dots, \ket{\testfunc_{\nbasis}}]$:
 $$
 \begin{align}
     \left(H(\params)  - \subspace{E}(\params)  \right)\ket{\trial\psi} &\perp \mathcal{Z} % \label{eq-eigenvalue_galerkin_geom},
@@ -192,12 +192,12 @@ Note that the normalization condition does not affect the Galerkin condition @eq
 ## Emulator workflow and offline-online decomposition
 
 ![Illustration of the workflow for implementing fast \& accurate emulators, including a high-fidelity solver (left) and an intrusive, projection-based emulator with efficient offline-online decomposition (right), for sampling the (approximate) solutions of the Schrödinger Equation @eq-generic_eigenvalue_problem in the parameter space $\params$.
-For brevity, the figure assumes that the snapshots are orthonormalized during the offline stage such that $\mathcal{N} = \identity$ in the emulator equation @eq-ritz_condition.
+For brevity, the figure assumes that the snapshots are orthonormalized during the offline stage such that $\subspace{N} = \identity$ in the emulator equation @eq-ritz_condition.
 See the main text for details.](figs/emulator_construction.png){#fig-illustration_fom_rom}
 
 
 Figure @fig-illustration_fom_rom illustrates the workflow for implementing fast \& accurate emulators as described in Section @sec-eigen-emulators_variational.
-From left to right, the workflow involves
+The workflow involves
 
 * a computational framework capable of reliably solving the high-fidelity system @eq-generic_eigenvalue_problem,
 * the snapshot-based trial wave function @eq-trial_general with the optimal coefficients (_i.e._, the weights) determined by the emulator Equation @eq-ritz_condition, and
@@ -214,6 +214,7 @@ Using the high-fidelity solver, one constructs a set of snapshots $\{\ket{\psi(\
 The runtime for this task is $\nbasis \times t_s$.
 For simplicity, Figure @fig-illustration_fom_rom assumes $\nbasis = 3$ and depicts the basis functions schematically in different colors.
 This phase of the emulator needs to be completed only once before the emulator is invoked and is thus called the _offline stage_ as opposed to the _online stage_ of the emulator.
+The predictions are made quickly and with little memory footprint in the online stage.
 
 The appearance of the full-order Hamiltonian during the offline stage, where the projected Hamiltonian $\subspace{H}(\params) \equiv X^\dagger H(\params) X$ is computed (see Figure @fig-illustration_fom_rom), implies that this class of projection-based emulators is _intrusive_in nature.
 In general, intrusive emulators apply the basis expansions and projections to the operators implemented in the high-fidelity model @ghattas_willcox_2021.
@@ -250,7 +251,7 @@ How should one choose the snapshots in the trial wave function @eq-trial_general
 For relatively small parameter spaces, one can use Latin hypercube sampling to obtain space-filling snapshots or choose the snapshots in the proximity of the to-be-emulated parameter ranges, keeping $\nbasis \ll \nsimulator$ in practice.
 A chosen set of snapshots expressed in the (truncated) model basis can be optimized by applying a singular value decomposition (SVD) or the closely related proper orthogonal decomposition (POD) @Gubisch2017 to the $\nsimulator \times \nbasis$ matrix $X$.
 One then creates a new set of snapshots from the (orthonormal) left-singular vectors associated with the singular values greater than a chosen threshold @hesthaven2015certified.
-This (optional) preprocessing step can be performed during the offline stage, as illustrated in Figure @fig-illustration_fom_rom, thereby rendering the emulator equation @eq-ritz_condition an eigenvalue problem (_i.e._, $\mathcal{N} = \identity$) and less sensitive to numerical noise.
+This (optional) preprocessing step can be performed during the offline stage, as illustrated in Figure @fig-illustration_fom_rom, thereby rendering the emulator equation @eq-ritz_condition an eigenvalue problem (_i.e._, $\subspace{N} = \identity$) and less sensitive to numerical noise.
 
 The basis states of the trial wave function can also be obtained iteratively, using a greedy algorithm [@Rozza2008;@hesthaven2015certified;@chen2017RBUQ].
 These algorithms estimate and then minimize the emulator's overall error by adding basis states (obtained from a high-fidelity solver) in the parameter space where the error is expected to be the largest.
@@ -436,7 +437,7 @@ ax.set_ylim(-6, 6)
 
 ```{python}
 #| label: fig-harm-osc
-#| fig-cap: "Basis functions for training the snapshot-based eigen-emulator. The black curves show the potential, and the blue curves show the wave functions as functions of the radius. The wave functions are offset vertically by their corresponding energies for clarity. See the main text for details."
+#| fig-cap: "Basis functions for training the snapshot-based eigen-emulator. The black curves show the potential, and the blue curves show the wave functions as functions of the radial coordinate $r$. The wave functions are offset vertically by their corresponding energies for clarity. See the main text for details."
 #| echo: false
 # with mpl.rc_context({'figure.constrained_layout.use': False}):
 with mpl.rc_context({'figure.constrained_layout.use': True, "figure.constrained_layout.h_pad": 1.5 / 72, "figure.constrained_layout.w_pad": 1.5 / 72}):
@@ -584,7 +585,7 @@ plt.show()
 
 ```{python}
 #| label: fig-wave-function-residuals
-#| fig-cap: "Absolute residuals of the emulated wave functions (in fm$^{-1/2}$) based on the RBM and HO emulator as a function of the radius. The emulator results are compared to the exact solutions. See the main text for details."
+#| fig-cap: "Absolute residuals of the emulated wave functions (in fm$^{-1/2}$) based on the RBM and HO emulator as a function of $r$. The emulator results are compared to the exact solutions. See the main text for details."
 #| echo: false
 fig, ax = plt.subplots(figsize=(3.3, 2.5))
 for i in range(n_example):
@@ -638,6 +639,7 @@ Their popularity stems partly from their convenient analytical form and flexibil
 GPs benefit from treating the underlying set of codes as a black box @ghattas_willcox_2021; as we will soon see, this is a double-edged sword.
 We employ two independent GPs to emulate the ground-state energy and the corresponding radius expectation value.
 Each GP uses a Gaussian covariance kernel and is fit to the observable values at the same values of $\params_i$ used to train the RBM emulator.
+We use the maximum likelihood values for the hyperparameters.
 
 ```{python}
 kernel = C(1) * RBF(length_scale=[1, 1, 1])

@@ -16,7 +16,7 @@ jupyter: python3
 
 # Scattering Emulators {#sec-scattering-emulators}
 
-In this Section, we describe the various reduced-basis emulators one could construct for quantum scattering systems.
+In this Section, we describe various reduced-basis emulators one could construct for quantum scattering systems.
 Throughout, we note how the variational principles used to construct emulators in recent works are related [@Furnstahl:2020abp;@Drischler:2021qoy;@Zhang:2021jmi;@Melendez:2021lyq; @KVP_vs_NVP:2022].
 We also describe how each of the results from VPs could instead be derived from Galerkin projections.
 
@@ -212,9 +212,7 @@ $$ {#eq-kohn-weak-reduced}
 which is exactly Equation @eq-kohn-psi-gradient found by making the KVP stationary.
 This simplification can be understood by noting that if $\{\coeffsopt, \lambda_\star\}$ satisfy Equation @eq-kohn-weak-reduced-unfinished, then we know that $\{\coeffsopt, \lambda_\star'\}$ is the unique solution to Equation @eq-kohn-weak-reduced.
 Therefore, we can solve Equation @eq-kohn-weak-reduced to obtain $\coeffsopt$ rather than Equation @eq-kohn-weak-reduced-unfinished.
-In conclusion, the Galerkin projection of the homogeneous Schrödinger equation with trial and test bases of $\psi_i$ is equivalent to the KVP as in Equation @eq-kohn-psi.
-
-
+In conclusion, using the Galerkin projection of the homogeneous Schrödinger equation with trial and test bases of $\psi_i$, we were able is equivalent to obtain the same coefficients as the KVP as in Equation @eq-kohn-psi-coeff-solution, which yield the same on-shell $K$ matrix when used in Equation @eq-kohn-psi-K-emulator.
 
 ## Unconstrained Kohn Emulators {#sec-kohn-no-lagrange}
 
@@ -308,9 +306,10 @@ The equivalence to the KVP is demonstrated in References [@Takatsuka1981Schwinge
 The Schwinger variational principle (SVP) is given by [@Takatsuka1981SchwingerKohnRelationship]
 $$
 \begin{equation} %\label{#eq-schwinger-vp}
-    \mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} - \braket{\trial\psi | V - V G_0 V | \trial\psi}.
+    \mathcal{K}[\trial\psi] = \braket{\trial\psi | V | \phi} + \braket{\phi | V | \trial\psi} - \braket{\trial\psi | V - V G_0 V | \trial\psi},s
 \end{equation}
 $${#eq-schwinger-vp}
+where $G_0$ is the Green's operator.
 This too has the stationary property $\mathcal{K}[\psi + \delta\psi] = K + \mathcal{O}(\delta K)^2$ when $\psi$ is a wave function satisfying the LS equation.
 Following the MOR philosophy and inserting a trial function $\trial\psi$, the stationary condition becomes
 $$
@@ -402,7 +401,7 @@ Coupled channels could be emulated by choosing the angular momentum quanta diffe
 In fact, the NVP does not even require $\ket{\phi}$ and $\ket{\phi'}$ to be free-space states; one can impose stationarity of Equation @eq-nvp between any two states due to its operator form.
 Note that the _independent_ coefficients $\coeffs$ are found for each choice of $\ket{\phi'}$ and $\ket{\phi}$.
 Thus, in the case of coupled partial waves, for example, each channel is emulated independently.
-To compute phase shifts, we must emulate $K$ at the on-shell energy $E=q^2/2\mu$ and thus, $k = k' = q$ for $\ket{\phi}$ and $\bra{\phi'}$.
+To compute phase shifts, we must emulate $K$ at the on-shell energy $E=q^2/2\mu$ and thus, $k = k' = q$ for $\ket{\phi}=\ket{k\ell m}$ and $\bra{\phi'}=\bra{k'\ell'm'}$.
 
 Expressed in the chosen basis, simplifying the functional Equation @eq-nvp after inserting Equation @eq-TritzTrial yields [@Melendez:2021lyq]
 $$
@@ -433,7 +432,7 @@ $\vec{m}$ and $M$
 can be efficiently constructed by linear combinations of matrices pre-computed during the emulator's offline stage, resulting
 in substantial improvements in CPU time, _e.g._, for chiral interactions.
 
-By imposing the stationary condition $\textup{d} \mathcal{K} /\textup{d} \coeffs = 0$, one then finds
+By imposing the stationary condition $\partial \mathcal{K} /\partial \coeffs = 0$, one then finds
 $\coeffsopt(\params)$ such that $M \coeffsopt = \vec{m}$.
 Given that the optimal $\coeffsopt(\params)$ yields a trial matrix Equation @eq-TritzTrial with an error $\delta K$, one can insert $\coeffsopt$ in Equation @eq-LS_identity_beta to obtain an error $(\delta K)^2$.
 The resulting emulator $\mathcal{K}_\star(\params) \equiv \mathcal{K}(\params, \coeffsopt)$ is then [@Melendez:2021lyq]
@@ -633,6 +632,7 @@ $$
 \end{equation}
 $$
 with $\kappa_1 = 0.5$ and $\kappa_2 = 1$.
+The parameters to be varied are $\params = \{\theta_1, \theta_2\}$.
 The six training and one validation parameters are selected randomly from a uniform distribution in the range of $[-5, 5]$ MeV.
 To obtain the snapshots, the partial-wave decomposed radial Schrödinger equation can be expressed as the system of coupled first-order differential equations,
 $$
@@ -787,7 +787,7 @@ Note that the coefficients $\coeffs$ are to be determined _independently_ for ea
 
 The coefficients are independent because We note that $\mathcal{LK}^{ss'}$ is independently stationary for each $ss'$ pair.} % (\ie, the coefficients $\coeffs$ are to be determined \emph{independently} for each $ss'$ pair).
 This becomes apparent when considering how one would solve for the coefficients in the case there are two uncoupled channels, where $ss' \to \ell$ in Equations @eq-kvp_reduced_coupled and @eq-delta_u_tilde_coupled.
-Here, each partial wave is completely independent of one another and thus one may not want to mix the VPs or the $\coeff$ across values of $\ell$.
+Here, each partial wave is completely independent of one another and thus each VP and their corresponding coefficients $\coeffs$ are independent of one another across values of $\ell$.
 Without loss of generality, let the two channels be labeled as $\ell = 0$ and $\ell = 1$, and let $\coeffs^{(0)}$ and $\coeffs^{(1)}$ denote the independent sets of coefficients found by making each channel's KVP stationary.
 Now consider adiabatically turning on a coupling between two partial waves: the coefficients $\coeffs^{(0)}$ and $\coeffs^{(1)}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, which one could label as $\coeffs^{(01)}$.
 Thus, even in the coupled case, there are multiple independent sets of coefficients to determine: one for each pair of incoming and outgoing channels.
@@ -807,7 +807,7 @@ The variational emulators for two-body scattering described so far can be genera
 In fact, the KVP, as a powerful method for solving scattering problems, has been applied in developing high-fidelity solvers (as opposed to a KVP-based emulator) for studying three- and four-nucleon systems (_e.g._, nucleon-deuteron elastic scattering below and above the deuteron break-up threshold) [@Marcucci:2019hml, @Kievsky:2008es].^[The other high-fidelity solvers in this context solve problems in momentum or coordinate space based on the Faddeev formalism [@Gloeckle:1995jg;@Deltuva:2012kt;@Lazauskas:2019rfb].]
 It is then natural to combine the KVP with the variational emulation strategy to develop fast \& accurate emulators beyond just two-body scattering.
 
-Here, we follow Reference [@Zhang:2021jmi] who developed KVP-based emulators for three-body systems.
+Here, we follow Reference [@Zhang:2021jmi], which developed KVP-based emulators for three-body systems.
 We focus on systems of three identical spinless bosons, particularly the elastic scattering between boson and two-boson bound state in the channel without any relative angular momenta and below the bound state's break-up threshold.
 The corresponding scattering $S$-matrix can be estimated via a variational functional that resembles
 Equation @eq-kvp-general in the two-body case:
@@ -830,7 +830,7 @@ with $R_1, r_1$ as one of three different Jacobi coordinate sets; $v$ and $P$ as
 The emulation procedure is generally similar to those for two-body emulations.
 We first collect high-fidelity calculations of $\ket{\trial\psi_i}$ at various points in the Hamiltonian's parameter space during the offline (_i.e._, training) stage and then use these snapshots as the basis to construct the trial solution (see Equation @eq-trial_general_subeq) to be used in the variational functional during the online emulation stage.
 A similar set of the low-dimensional linear equations as in Equations @eq-kohn-psi-coeff-solution can be derived to fix the weights $\beta_i$.
-The variational functional with these inputs produce accurate results for the $S$ matrix at the emulation points.
+The variational functional with these inputs produce accurate results for the $S$ matrix at the emulation points @Zhang:2021jmi.
 This is all straightforward if we vary only the three-body interactions in $H(\params)$ when exploring its parameter space.
 If the two-body interactions are also changed, the two-body bound states of those snapshots are different among themselves and therefore the trial wave functions based on Equation @eq-trial_general_subeq fails to satisfy the asymptotic behavior described in Equation @eq-WFbelowbreakupAsym.
 In Reference [@Zhang:2021jmi], proper modifications were applied to the constructions of the trial wave functions to satisfy the asymptotic condition.
@@ -1111,7 +1111,7 @@ Then, we train the `KohnLippmannSchwingerEmulator`:
 We these trained emulators in place, let's use the KVP and NVP to emulate the phase shifts associated with the Yamaguchi potenital @eq-yamaguchi:
 ```{python}
 #| label: fig-yamaguchi-phase-shifts
-#| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi  for each scattering emulator discussed above. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The emulators are so accurate that they are indistinguishable unless looking at residuals. The training set is given by the five gray lines."
+#| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi  for each scattering emulator discussed above. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The emulators are so accurate that they are indistinguishable unless looking at residuals. The training set is given by the two gray lines."
 p_valid = np.array([-30, 0, 20])
 # p_valid = np.array([20, 0, 0])
 K_yama_nvp = newton_yama.predict(p_valid)

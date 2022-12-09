@@ -31,9 +31,10 @@ $$
 \end{align}
 $$ {#eq-generic_differential_and_boundary}
 where $\{D, B\}$ are differential operators and $\Omega$ is the domain with boundary $\Gamma$.
+See Reference~\cite{Melendez:2022kid} for illustrative examples.
 Here, we use the generic function $\trialfunc$ because different choices of $\trialfunc$ will be made in Section @sec-scattering-emulators.
 In what follows, we will discuss two related methods for constructing emulators from Equation @eq-generic_differential_and_boundary,
-which states the physics problem in a _strong form_ (_i.e._, for each point in the domain and on the boundary).
+which states the physics problem in a _strong form_ (_i.e._, Equation @eq-generic_differential_and_boundary holds for each point in the domain and on the boundary).
 The first begins by finding a variational principle whose stationary solution implies Equation @eq-generic_differential_and_boundary.
 The second instead constructs the corresponding _weak form_ of Equation @eq-generic_differential_and_boundary.
 
@@ -71,11 +72,11 @@ $$
     \delta\action = \sum_{i=1}^{\nbasis} \frac{\partial\action}{\partial\coeff_i}\delta\coeff_i = 0.
 \end{equation}
 $$ {#eq-action_stationary_ansatz}
-The general case would involve a numerical search for the solution to Equation @eq-action_stationary_ansatz but if $\action$ is quadratic in $\trialfunc$ then the solution can be determined exactly.
+The general case would involve a numerical search for the solution to Equation @eq-action_stationary_ansatz but if $\action$ is quadratic in $\trialfunc$, as are all the examples considered here, then the solution can be determined exactly.
 In this case, $\action$ can be written as
 $$
 \begin{equation}
-    \action = \frac{1}{2}\coeffs^\trans A \coeffs + \vec{b}\cdot \coeffs + c
+    \action[\coeffs] = \frac{1}{2}\coeffs^\trans A \coeffs + \vec{b}\cdot \coeffs + c
 \end{equation}
 $$
 for some matrix $A$, vector $\vec{b}$, and scalar $c$.
@@ -95,7 +96,7 @@ A nugget $\nu \ll 1$ can be added to the diagonal elements of $A_s$ to help stab
 
 ## Galerkin Emulators
 
-On the other hand, the Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations in Equation @eq-generic_differential_and_boundary.
+On the other hand, the Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations @eq-generic_differential_and_boundary.
 To obtain the weak form, the differential equation and boundary condition (in Equation @eq-generic_differential_and_boundary) are left-multiplied by arbitrary test functions $\testfunc$ and $\bar\testfunc$ and integrated over the domain and boundary, respectively, and then their sum is set to zero:
 $$
 \begin{equation} %\label{eq-weak_differential}
