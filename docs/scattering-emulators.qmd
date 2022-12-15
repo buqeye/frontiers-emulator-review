@@ -173,9 +173,11 @@ $$
 $${#eq-kohn-weak-initial}
 To make explicit the boundary conditions, we make use of the relation
 $$
-\begin{multline} %\label{#eq-int-by-parts-wronskian}
-    0=\braket{\testfunc | H - E | \psi} \\= \braket{\testfunc | \overleftarrow{H} - E | \psi} - \left.\frac{W(r\testfunc, r\psi; r)}{2\mu} \right|_{r=0}^{\infty},
-\end{multline}
+\begin{align} %\label{#eq-int-by-parts-wronskian}
+    0
+    & = \braket{\testfunc | H - E | \psi} \notag\\
+    & = \braket{\testfunc | \overleftarrow{H} - E | \psi} - \left.\frac{W(r\testfunc, r\psi; r)}{2\mu} \right|_{r=0}^{\infty},
+\end{align}
 $${#eq-int-by-parts-wronskian}
 where we have again used the Wronskian from Equation @eq-wronskian, and assigned $\overleftarrow{H}$ as the operator acting, after integration by parts, on $\langle \testfunc | $ instead of  $|\psi\rangle$.
 By adding Equations @eq-int-by-parts-wronskian and @eq-kohn-weak-initial, we have
@@ -649,7 +651,7 @@ $$
 $$
 and numerically solved with Runge-Kutta methods.
 For more details on solving the radial Schrödinger equation and matching the solutions to the asymptotic boundary condition @eq-psi-normalization, see, _e.g._, Reference [@thompson2009].
-As we can see from Figure @fig-wave-functions-origin, each training and emulated wave function has matching boundary conditions at the origin, and the discrepancy from the true wave function is less than $10^{-3}$.
+As we can see from Figure @fig-wave-functions-origin, each training and emulated wave function has matching boundary conditions at the origin, and the discrepancy from the true wave function is less than $10^{-3}$\,fm$^{-1/2}$.
 
 
 
@@ -764,23 +766,25 @@ $$
 \begin{align}
     \dU_{ij}^{ss'} & \equiv \frac{1}{\mathrm{det} \, \umatrix}
     \big[
-    \braket{\psi_i^{st} | [H(\params) - E]^{tt'} | \psi_j^{t's'}} \notag \\
-    %+ (i \leftrightarrow j) \notag
-    & \qquad \quad \, + \braket{\psi_j^{st} | [H(\params) - E]^{tt'} | \psi_i^{t's'}} \notag
+    \braket{\psi_i^{s} | H(\params) - E | \psi_j^{s'}} %\notag \\
+    %& \qquad \qquad \,
+    + (i \leftrightarrow j) \notag
+    %& \qquad \quad \, + \braket{\psi_j^{st} | [H(\params) - E]^{tt'} | \psi_i^{t's'}} \notag
     \big]
     \notag\\
-    %& \quad +  \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
+    %& \quad\null +  \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
     & = \frac{1}{\mathrm{det} \, \umatrix}
     \big[
-    \braket{\psi_i^{st} | [V(\params) - V_j]^{tt'} | \psi_j^{t's'}} \notag \\
-    %+ (i \leftrightarrow j) \notag
-    & \qquad \quad \, + \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}} \notag
+    \braket{\psi_i^{s} | V(\params) - V_j | \psi_j^{s'}} %\notag \\
+    %& \qquad \qquad \,
+    + (i \leftrightarrow j) \notag
+    %& \qquad \quad \, + \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}} \notag
     \big], \notag\\
-    %& \quad +  \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}},
-    %\label{#eq-delta_u_tilde_coupled}
+    %& \quad\null +  \braket{\psi_j^{st} | [V(\params) - V_i]^{tt'} | \psi_i^{t's'}},
+    % \label{eq:delta_u_tilde_coupled}
 \end{align}
 $${#eq-delta_u_tilde_coupled}
-with $s$ and $s'$ corresponding to the entrance and exit channels and $t$ and $t'$ are summed over the available channels.
+with $s$ and $s'$ corresponding to the entrance and exit channels.
 The uncoupled case is retrieved by replacing $ss' \to \ell$.
 Solving for $\coeffs$ now proceeds as in Equation @eq-kohn-psi-coeff-solution but for a specific choice of $ss'$ channels.
 Note that the coefficients $\coeffs$ are to be determined _independently_ for each $ss'$ pair.

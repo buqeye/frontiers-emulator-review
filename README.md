@@ -1,7 +1,8 @@
 
 # BUQEYE Guide to Projection-Based Emulators in Nuclear Physics (Frontiers in Physics Article)
 
-All examples discussed in our Frontiers in Physics Article "BUQEYE Guide to Projection-Based Emulators in Nuclear Physics" and more are available here as interactive, open-source Python code so that practitioners can readily adapt projection-based emulators for their own work.
+The [BUQEYE collaboration](https://buqeye.github.io/) presents a pedagogical introduction to projection-based, reduced-order emulators for applications in low-energy nuclear physics.
+All examples discussed in our Frontiers in Physics Article "BUQEYE Guide to Projection-Based Emulators in Nuclear Physics" ([arXiv:2212.04912](https://arxiv.org/abs/2212.04912)) and more are available here as interactive, open-source Python code so that practitioners can readily adapt projection-based emulators for their own work.
 
 
 ## Documentation
@@ -14,6 +15,13 @@ python3 -m venv env
 source env/bin/activate
 pip3 install -r requirements.txt
 export PYTHONPATH=$PYTHONPATH:`pwd`
+quarto preview docs
+```
+
+Alternatively, you can spin it up using the management system `conda`:
+```bash
+conda env create -f environment.yml
+conda activate frontiers-emulator-env
 quarto preview docs
 ```
 
@@ -39,3 +47,5 @@ Please cite this repository as:
     year = "2022"
 }
 ```
+
+See also our published literature guide [Model reduction methods for nuclear emulators](https://inspirehep.net/literature/2049517).
