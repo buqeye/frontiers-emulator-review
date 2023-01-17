@@ -84,19 +84,19 @@ Symmetrizing the quadratic portion---if it is not already symmetric---by rewriti
 It then follows that the optimal coefficients, $\coeffsopt$ are those for which
 $$
 \begin{equation} %\label{eq-coefficient_solve_quadratic}
-    \delta\action = A_s\coeffs_\star + \vec{b} = 0,
+    \delta\action = A\coeffs_\star + \vec{b} = 0,
 \end{equation}
 $$ {#eq-coefficient_solve_quadratic}
 which can be solved for $\coeffsopt$ using standard linear algebra methods.
 Solving for $\coeffsopt$ occurs only in a space of size $\nbasis$, the number of basis elements $\{\trialfunc_i\}_{i=1}^{\nbasis}$, rather than in the much larger space of $\trialfunc$ itself.
 Therefore, as long as $\{\trialfunc_i\}_{i=1}^{\nbasis}$ approximately spans the space in which $\trialfunc$ lives, the trial function constructed by Equations @eq-trial_general_subeq and @eq-coefficient_solve_quadratic will be both a fast & accurate emulator of $\trialfunc$.
 
-Similar to the discussion in Section~\ref{sec:eigen-emulators_variational}, the matrix $A_s$ in Equation @eq-coefficient_solve_quadratic may be ill-conditioned and require regularization.
-A nugget $\nu \ll 1$ can be added to the diagonal elements of $A_s$ to help stabilize the solution for $\coeffsopt$ [@Neumaier98solvingill-conditioned;@engl1996regularization].
+Similar to the discussion in Section @sec-eigen-emulators_variational, the matrix $A$ in Equation @eq-coefficient_solve_quadratic may be ill-conditioned and require regularization.
+A nugget $\nu \ll 1$ can be added to the diagonal elements of $A$ to help stabilize the solution for $\coeffsopt$ [@Neumaier98solvingill-conditioned;@engl1996regularization].
 
 ## Galerkin Emulators
 
-On the other hand, the Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations @eq-generic_differential_and_boundary.
+The Galerkin approach, also more broadly called the "method of weighted residuals," relies on the _weak} formulation of the differential equations @eq-generic_differential_and_boundary.
 To obtain the weak form, the differential equation and boundary condition (in Equation @eq-generic_differential_and_boundary) are left-multiplied by arbitrary test functions $\testfunc$ and $\bar\testfunc$ and integrated over the domain and boundary, respectively, and then their sum is set to zero:
 $$
 \begin{equation} %\label{eq-weak_differential}

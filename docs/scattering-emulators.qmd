@@ -69,10 +69,10 @@ $$ {#eq-psi-normalization}
 where $\phi(r) = j_\ell(qr)$ is the (regular) free-space wave function, and $j_\ell(qr)$ and $n_\ell(qr)$ are spherical Bessel and Neumann functions, respectively.^[We focus here on examples with real-valued potentials and without long-range Coulomb interactions. Cases with complex-valued potentials and/or the Coulomb interaction may be analyzed in similar ways; relevant discussions specific to Kohn emulators can be found in References [@Furnstahl:2020abp;@Drischler:2021qoy].]
 Note that we define the on-shell $K_E$ matrix as
 $$
-\begin{equation}
+\begin{equation}  % \label{eq:def_K_E}
     K_E = -\frac{\tan\delta_\ell}{2\mu q},
 \end{equation}
-$$
+$$ {#eq-def_K_E}
 which differs from the convention in Reference [@Furnstahl:2020abp].
 The KVP is stationary about exact solutions $\psi$, such that $\mathcal{K}[\psi + \delta\psi] = K_E + \mathcal{O}(\delta K)^2$.
 
@@ -590,7 +590,7 @@ norm_proj = np.einsum("ir,jr->ij", dr * psi_train, psi_train)
 Next, we apply the emulator to emulate the radial Schrödinger equation in a test case:
 ```{python}
 #| label: fig-wave-functions-origin
-#| fig-cap: "Results for the scattering emulator with origin boundary conditions. Six basis functions are shown as gray lines, and the exact wave function as a black line. Each of the basis functions and the emulated wave function satisfy the constraints at the origin."
+#| fig-cap: "Results for the scattering emulator with origin boundary conditions in arbitrary units. Six basis functions are shown as gray lines, and the exact wave function as a black line. Each of the basis functions and the emulated wave function satisfy the constraints at the origin."
 bc_idx = 0
 # Use a Petrov-Galerkin approach for the test functions on the boundary. Use d_psi.
 BC_norm_proj = d_psi_train[:, bc_idx] * d_psi_train[:, bc_idx].T
@@ -635,8 +635,8 @@ $$
 $$
 with $\kappa_1 = 0.5$ and $\kappa_2 = 1$.
 The parameters to be varied are $\params = \{\theta_1, \theta_2\}$.
-The six training and one validation parameters are selected randomly from a uniform distribution in the range of $[-5, 5]$ MeV.
-To obtain the snapshots, the partial-wave decomposed radial Schrödinger equation can be expressed as the system of coupled first-order differential equations,
+The six training and one validation parameters are selected randomly from a uniform distribution in the range of $[-5, 5]$.
+To obtain the snapshots, the partial-wave decomposed radial Schrödinger equation for $\ell = 0$ can be expressed as the system of coupled first-order differential equations,
 $$
 \begin{equation}
 \begin{pmatrix}
@@ -644,14 +644,14 @@ $$
     y'_1(r)
 \end{pmatrix} =
 \begin{pmatrix}
-    \psi'(r) \\
-    \frac{\ell(\ell+1)}{r^2} + 2\mu \left[V(r; \params_i)  - E \right] \psi(r)
+    (r\psi)'(r) \\
+    2\mu \left[V(r; \theta_i)  - E \right] (r\psi)(r)
 \end{pmatrix},
 \end{equation}
 $$
 and numerically solved with Runge-Kutta methods.
 For more details on solving the radial Schrödinger equation and matching the solutions to the asymptotic boundary condition @eq-psi-normalization, see, _e.g._, Reference [@thompson2009].
-As we can see from Figure @fig-wave-functions-origin, each training and emulated wave function has matching boundary conditions at the origin, and the discrepancy from the true wave function is less than $10^{-3}$\,fm$^{-1/2}$.
+As we can see from Figure @fig-wave-functions-origin, each training and emulated wave function has matching boundary conditions at the origin, and the discrepancy from the true wave function is less than $10^{-3}$.
 
 
 
@@ -659,13 +659,11 @@ As we can see from Figure @fig-wave-functions-origin, each training and emulated
 
 
 The KVP functional given in Equation @eq-kohn-psi can be extended to include arbitrary boundary conditions [@Drischler:2021qoy,@Lucchese:1989zz].
-For simplicity, we demonstrate the general KVP by using a single-channel example in coordinate space, but this work also holds for two-body scattering in momentum space (see Reference [@KVP_vs_NVP:2022]).
-Let us consider short-range potentials $V(\params)$ in coordinate space and partial-wave decomposed into an uncoupled channel with angular momentum $\ell$.
-The radial wave functions will be the free-space solutions^[We follow the conventions for scattering matrices in References. [@taylor2006scattering,@Morrison:2007].]
-of the general form
+For simplicity, let us consider short-range potentials $V(\params)$ that have been partial-wave decomposed into an uncoupled channel with angular momentum $\ell$.
+The general asymptotic form of the (coordinate-space)} radial wave functions will be linear combinations of free-space solutions^[We follow the conventions for scattering matrices in References [@taylor2006scattering,@Morrison:2007]. Thus, the $K$ matrix in this section is dimensionless and defined without the negative sign in Eq. @eq-def_K_E.]
 $$
 \begin{align} %\label{#eq-free-sol-coordinate}
-\phi_{\ell,E}(r) =  \bar{\phi}_{\ell,E}^{\text{(0)}}(r) + L_{\ell,E} \, \bar{\phi}_{\ell,E}^{\text{(1)}}(r) \, ,
+\psi_{\ell,E}(r) \xrightarrow[r\rightarrow\infty]{} \bar{\phi}_{\ell,E}^{\text{(0)}}(r) + L_{\ell,E} \, \bar{\phi}_{\ell,E}^{\text{(1)}}(r) \, ,
 \end{align}
 $$ {#eq-free-sol-coordinate}
 where
@@ -692,9 +690,10 @@ Here, $L_{\ell, E}$ is a generic scattering matrix that is determined by the bou
 We now define $\genkvp$ as a general functional for the generic $L$-matrix in Equation @eq-free-sol-coordinate [@Lucchese:1989zz;@Drischler:2021qoy;@KVP_vs_NVP:2022],
 $$
 \begin{equation} %\label{#eq-kvp-general}
-    \mathcal{L}[\trial\psi] = L_{\ell, E} + \frac{\mathcal{N}}{\mathrm{det} \, \umatrix} \braket{\trial \psi_{\umatrix} | H - E | \trial \psi_{\umatrix}}
+    \mathcal{L}[\trial\psi] = L_{\ell, E} + \frac{2 \mu \, \mathcal{N} \, {}^2}{q \, \mathrm{det} \, \umatrix} \braket{\trial \psi_{\umatrix} | H - E | \trial \psi_{\umatrix}}.
 \end{equation}
 $${#eq-kvp-general}
+Note that Equation @eq-kvp-general is not restricted to coordinate space, _e.g._, it also holds for scattering in momentum space (see Reference @KVP_vs_NVP:2022).
 With Equation @eq-kohn-psi, one can follow the process described in Section @sec-kohn-lagrange to emulate any asympototic boundary condition.
 Obtaining an emulator prediction for different boundary conditions does not mean that Equation @eq-kvp-general has to be solve multiple times.
 In fact, it only needs to be solved once and each term in the functional _rescaled_ using the relations derived in Reference [@Drischler:2021qoy]:
@@ -764,7 +763,7 @@ $${#eq-kvp_reduced_coupled}
 where
 $$
 \begin{align}
-    \dU_{ij}^{ss'} & \equiv \frac{1}{\mathrm{det} \, \umatrix}
+    \dU_{ij}^{ss'} & \equiv \ \frac{2 \mu \, \mathcal{N} \, {}^2}{q \, \mathrm{det} \, \umatrix}
     \big[
     \braket{\psi_i^{s} | H(\params) - E | \psi_j^{s'}} %\notag \\
     %& \qquad \qquad \,
@@ -773,7 +772,7 @@ $$
     \big]
     \notag\\
     %& \quad\null +  \braket{\psi_j^{st} | [H - E]^{tt'} | \psi_i^{t's'}} \notag\\
-    & = \frac{1}{\mathrm{det} \, \umatrix}
+    & =  \frac{2 \mu \, \mathcal{N} \, {}^2}{q \, \mathrm{det} \, \umatrix}
     \big[
     \braket{\psi_i^{s} | V(\params) - V_j | \psi_j^{s'}} %\notag \\
     %& \qquad \qquad \,
@@ -789,8 +788,8 @@ The uncoupled case is retrieved by replacing $ss' \to \ell$.
 Solving for $\coeffs$ now proceeds as in Equation @eq-kohn-psi-coeff-solution but for a specific choice of $ss'$ channels.
 Note that the coefficients $\coeffs$ are to be determined _independently_ for each $ss'$ pair.
 
-The coefficients are independent because We note that $\mathcal{LK}^{ss'}$ is independently stationary for each $ss'$ pair.} % (\ie, the coefficients $\coeffs$ are to be determined \emph{independently} for each $ss'$ pair).
-This becomes apparent when considering how one would solve for the coefficients in the case there are two uncoupled channels, where $ss' \to \ell$ in Equations @eq-kvp_reduced_coupled and @eq-delta_u_tilde_coupled.
+The coefficients are independent because $\mathcal{L}^{ss'}$ is independently stationary for each $ss'$ pair.
+This becomes apparent when considering how one would solve for the coefficients in the case where there are two uncoupled channels, where $ss' \to \ell$ in Equations @eq-kvp_reduced_coupled and @eq-delta_u_tilde_coupled.
 Here, each partial wave is completely independent of one another and thus each VP and their corresponding coefficients $\coeffs$ are independent of one another across values of $\ell$.
 Without loss of generality, let the two channels be labeled as $\ell = 0$ and $\ell = 1$, and let $\coeffs^{(0)}$ and $\coeffs^{(1)}$ denote the independent sets of coefficients found by making each channel's KVP stationary.
 Now consider adiabatically turning on a coupling between two partial waves: the coefficients $\coeffs^{(0)}$ and $\coeffs^{(1)}$ should remain nearly fixed to their previously uncoupled values, but now there is a new set of coefficients to determine, which one could label as $\coeffs^{(01)}$.
@@ -889,7 +888,7 @@ $$
     \braket{p|v_i^\ell} \equiv v_i^\ell(p) = \frac{p^{\ell}}{(p^2 + b_i^2)^{\ell+1}} %\label{#eq-yamaguchi}
 \end{align}
 $$ {#eq-yamaguchi}
-with $\ell=0$ and assume a rank-2 potential with $b_i = [2, 4]$ fm$^{-1}$ and $2\mu = 1$.
+with $\ell=0$ and assume a rank-2 potential with $b_i = [2, 4]$ and $2\mu = 1$.
 In this case,
 $$
     J_{ij} = \frac{\pi}{2} \frac{(q^2 - b_i b_j)}{(b_i + b_j)(q^2 + b_i^2)(q^2 + b_j^2)},
@@ -1115,7 +1114,7 @@ Then, we train the `KohnLippmannSchwingerEmulator`:
 We these trained emulators in place, let's use the KVP and NVP to emulate the phase shifts associated with the Yamaguchi potenital @eq-yamaguchi:
 ```{python}
 #| label: fig-yamaguchi-phase-shifts
-#| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi  for each scattering emulator discussed above. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The emulators are so accurate that they are indistinguishable unless looking at residuals. The training set is given by the two gray lines."
+#| fig-cap: "Phase shifts (top panel) and absolute residuals (bottom panel) in arbitrary units for the Yamaguchi potential @eq-yamaguchi for each scattering emulator discussed above. The solid black lines represent the high-fidelity solution and the dots represent the different emulators results: NVP (blue) and KVP emulator (orange). The emulators are so accurate that they are indistinguishable unless looking at residuals. The training set is given by the two gray lines."
 p_valid = np.array([-30, 0, 20])
 # p_valid = np.array([20, 0, 0])
 K_yama_nvp = newton_yama.predict(p_valid)
@@ -1243,7 +1242,7 @@ def plot_wave_functions(r, psi_emulator, psi_exact, psi_train, q_cm):
 Now, we apply `plot_wave_functions()` to plot the emulated wave functions and their residuals relative to the high-fidelity calculations:
 ```{python}
 #| label: fig-yamaguchi-wave-functions
-#| fig-cap: "Wave functions (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi using the constrained KVP. The top panel legend description is similar to Figure~\ref{fig:yamaguchi_phase_shifts}, but for three different values of $q$ in units of fm$^{-1}$. The bottom panel shows the relative residuals of the three values previously mentioned."
+#| fig-cap: "Wave functions (top panel) and absolute residuals (bottom panel) for the Yamaguchi potential @eq-yamaguchi in arbitrary units using the constrained KVP. The top panel legend description is similar to Figure~\ref{fig:yamaguchi_phase_shifts}, but for three different values of $q$. The bottom panel shows the relative residuals of the three values previously mentioned."
 # psi_train_yama = kohn_yama.psi_train
 
 rr = np.linspace(1e-2, 10, 201)
@@ -1268,7 +1267,7 @@ plt.show()
 ```
 
 Figure @fig-yamaguchi-wave-functions shows the high-fidelity (solid black line), emulated (dots), and basis (solid gray line) wave functions for three values of $q$ with their absolute residuals using the constrained KVP constructed with $\nbasis=5$ training points.
-The emulator reproduces the high-fidelity solution at all three values of $q$, with $q = 2.0 \, \text{fm}^{-1}$ having the smallest residual.
+The emulator reproduces the high-fidelity solution at all three values of $q$, with $q = 2.0$ having the smallest residual.
 The sensitivity of the emulator accuracy as $\nbasis$ is varied can be readily studied using the Python code provided on the companion website @companionwebsite. An example of how the accuracy is affected when varying $\nbasis$ is also given in Refereence @KVP_vs_NVP:2022.
 
 In addition, we make the same comparision between the NVP and KVP emulators for a different potential. We choose the ${}^1S_0$ Minnesota potential:
