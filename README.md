@@ -50,7 +50,8 @@ Please cite this repository as:
     pages=92931,
     YEAR={2023},      
     URL={https://www.frontiersin.org/articles/10.3389/fphy.2022.1092931},       
-    DOI={10.3389/fphy.2022.1092931},      
+    DOI={10.3389/fphy.2022.1092931},    
+    note          = {supplemental, interactive Python code can be found on the companion website~\url{https://github.com/buqeye/frontiers-emulator-review}},
     ISSN={2296-424X}   
 }
 ```
