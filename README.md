@@ -38,14 +38,20 @@ The following flags are helpful:
 Please cite this repository as:
 
 ```bibtex
-@inproceedings{Drischler:2022ipa,
+@article{Drischler:2022ipa,
     author = "Drischler, C. and Melendez, J. A. and Furnstahl, R. J. and Garcia, A. J. and Zhang, Xilin",
     title = "{BUQEYE Guide to Projection-Based Emulators in Nuclear Physics}",
     eprint = "2212.04912",
     archivePrefix = "arXiv",
     primaryClass = "nucl-th",
     month = "12",
-    year = "2022"
+    JOURNAL={Front. Phys.},      
+    VOLUME={10},
+    pages=92931,
+    YEAR={2023},      
+    URL={https://www.frontiersin.org/articles/10.3389/fphy.2022.1092931},       
+    DOI={10.3389/fphy.2022.1092931},      
+    ISSN={2296-424X}   
 }
 ```
 
