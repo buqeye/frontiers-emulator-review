@@ -22,6 +22,7 @@ Alternatively, you can spin it up using the management system `conda`:
 ```bash
 conda env create -f environment.yml
 conda activate frontiers-emulator-env
+pip3 install .
 quarto preview docs
 ```
 
