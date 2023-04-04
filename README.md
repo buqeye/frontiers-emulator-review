@@ -35,9 +35,9 @@ The following flags are helpful:
 
 The files `docs/*.qmd` contain the sections of our manuscript. The user has these options to take advantage of the interactive content:
 * `quarto convert docs/[filename].qmd` converts the document `docs/[filename].qmd` to an interactive Jupyter Notebook, which can be evaluated cell by cell.
-* one can use any editor or IDE to edit the files `docs/[filename].qmd` and let `quarto` re-render the website on-the-fly using `quarto preview docs`. `VS Code` provides an [extension](https://quarto.org/docs/tools/vscode.html) for `quarto`.
+* one can use any editor or IDE to edit the files `docs/*.qmd` and let `quarto` re-render the website on-the-fly using `quarto preview docs`. `VS Code` provides an [extension](https://quarto.org/docs/tools/vscode.html) for `quarto`.
 
-A quick tutorial on using `quarto` can be found [here](https://towardsdatascience.com/quarto-a-game-changer-for-rendering-jupyter-notebooks-826c885a531f).
+A tutorial on using `quarto` can be found [here](https://towardsdatascience.com/quarto-a-game-changer-for-rendering-jupyter-notebooks-826c885a531f).
 
 
 ## Cite this work
