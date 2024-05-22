@@ -11,9 +11,8 @@ The documentation is written using `Quarto`.
 Download the latest version of `Quarto` from [here](https://quarto.org/) and then spin it up in development using
 
 ```bash
-python3 -m venv env
-source env/bin/activate
-pip3 install -r requirements.txt
+conda env create -f environment.yml
+conda activate frontiers-emulator-env
 export PYTHONPATH=$PYTHONPATH:`pwd`
 quarto preview docs
 ```
